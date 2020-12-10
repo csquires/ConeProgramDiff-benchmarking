@@ -12,7 +12,7 @@ def random_cone_prog(m, n, cone_dict):
     z = np.random.randn(m)
     s_star = diffcp.cones.pi(z, cone_list, dual=False)
     y_star = s_star - z
-    A = sparse.csc_matrix(np.random.randn(m, n))
+    A = sparse.csr_matrix(np.random.randn(m, n))
     x_star = np.random.randn(n)
     b = A @ x_star + s_star
     c = -A.T @ y_star
@@ -27,7 +27,6 @@ def _str2vec(s, t):
     return np.array([t(val) for val in s[:-1].split("\t")])
 
 
-# TODO: dense
 def save_cone_program(file, program, dense=False):
     A = program["A"]
     with open(file, "w") as file:
@@ -37,9 +36,9 @@ def save_cone_program(file, program, dense=False):
             file.write("\n")
         else:
             row_ixs, col_ixs = A.nonzero()
-            file.write(_vec2str(row_ixs))
+            file.write(_vec2str(row_ixs+1))
             file.write("\n")
-            file.write(_vec2str(col_ixs))
+            file.write(_vec2str(col_ixs+1))
             file.write("\n")
             file.write(_vec2str(A.data))
             file.write("\n")
@@ -56,7 +55,6 @@ def save_cone_program(file, program, dense=False):
             file.write(_vec2str(program["s_star"]))
 
 
-# TODO: dense
 def load_cone_program(file, dense=False):
     with open(file, "r") as file:
         lines = file.readlines()
@@ -64,7 +62,7 @@ def load_cone_program(file, dense=False):
             b = _str2vec(lines[1], float)
             c = _str2vec(lines[2], float)
             vals = _str2vec(lines[0], float)
-            A = vals.reshape(len(b), len(c))  # column major order?
+            A = vals.reshape(len(c), len(b)).T  # column major order?
         else:
             b = _str2vec(lines[3], float)
             c = _str2vec(lines[4], float)
@@ -72,7 +70,7 @@ def load_cone_program(file, dense=False):
             row_ixs = _str2vec(row_ixs, int)
             col_ixs = _str2vec(col_ixs, int)
             vals = _str2vec(vals, float)
-            A = csr_matrix((vals, (row_ixs, col_ixs)), shape=(len(b), len(c)))
+            A = csr_matrix((vals, (row_ixs-1, col_ixs-1)), shape=(len(b), len(c)))
 
         if (dense and len(lines) == 6) or len(lines) == 8:  # x_star, y_star, s_star exist
             x_star = _str2vec(lines[-3], float)
@@ -84,6 +82,10 @@ def load_cone_program(file, dense=False):
 
 
 if __name__ == '__main__':
+    import random
+    np.random.seed(120312)
+    random.seed(120931)
+
     cone_dict = {
         diffcp.ZERO: 3,
         diffcp.POS: 3,
@@ -93,11 +95,19 @@ if __name__ == '__main__':
     m = 3 + 3 + 5
     n = 5
 
+    folder = "/home/csquires/Desktop/"
     program = random_cone_prog(m, n, cone_dict)
-    save_cone_program("random_programs/test.txt", program)
-    p = load_cone_program("random_programs/test.txt")
-
+    save_cone_program(f"{folder}/test_sparse_py.txt", program)
     program_dense = program.copy()
     program_dense["A"] = program["A"].toarray()
-    save_cone_program("random_programs/test_dense.txt", program_dense, dense=True)
-    p_dense = load_cone_program("random_programs/test_dense.txt", dense=True)
+    save_cone_program(f"{folder}/test_dense_py.txt", program_dense, dense=True)
+
+    # in Julia, read and write back to files
+
+    # p = load_cone_program(f"{folder}/test_sparse_jl.txt")
+    p = load_cone_program(f"{folder}/test_sparse_jl.txt")
+    p_dense = load_cone_program(f"{folder}/test_dense_jl.txt", dense=True)
+
+    for k in program:
+        print(np.max(program[k] - p[k]))
+        # print(np.all(program_dense[k] == p_dense[k]))
