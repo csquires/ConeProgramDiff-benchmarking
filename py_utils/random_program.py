@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import sparse
 import diffcp
+import os
 
 
 def random_cone_prog(m, n, cone_dict):
@@ -17,14 +18,28 @@ def random_cone_prog(m, n, cone_dict):
 
 
 def save_cone_program(folder, A, b, c):
-    np.savetxt(f'{folder}/A.txt', A)
+    os.makedirs(folder, exist_ok=True)
+    sparse.save_npz(f'{folder}/A.npz', A)
     np.savetxt(f'{folder}/b.txt', b)
     np.savetxt(f'{folder}/c.txt', c)
 
 
 def load_cone_program(folder):
-    A = np.loadtxt(f'{folder}/A.txt')
+    A = sparse.load_npz(f'{folder}/A.npz')
     b = np.loadtxt(f'{folder}/b.txt')
     c = np.loadtxt(f'{folder}/c.txt')
     return A, b, c
 
+
+if __name__ == '__main__':
+    cone_dict = {
+        diffcp.ZERO: 3,
+        diffcp.POS: 3,
+        diffcp.SOC: [5]
+    }
+
+    m = 3 + 3 + 5
+    n = 5
+
+    A, b, c = random_cone_prog(m, n, cone_dict)
+    save_cone_program("random_programs/test/", A, b, c)
