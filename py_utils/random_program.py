@@ -81,39 +81,39 @@ def load_cone_program(file, dense=False):
             return dict(A=A, b=b, c=c)
 
 
+def load_derivative_and_adjoint(file):
+    # dA, db, dc, dx, dy, ds
+    with open(file, "r") as file:
+        lines = file.readlines()
+        db = _str2vec(lines[1], float)
+        dc = _str2vec(lines[2], float)
+        dA = _str2vec(lines[0], float).reshape((len(db), len(dc)))
+
+        dx = _str2vec(lines[3], float)
+        dy = _str2vec(lines[4], float)
+        ds = _str2vec(lines[5], float)
+
+        return dict(dA=dA, db=db, dc=dc, dx=dx, dy=dy, ds=ds)
+
+
 # do all dense
 def save_derivative_and_adjoint(file, input_sensitivities, reverse_sensitivities):
     dA, db, dc = input_sensitivities
     dx, dy, ds = reverse_sensitivities
 
-    # first line: dA
-    # second line: db
-    # third line: dc
-
-    # fourth line: dx
-    # fifth line: dy
-    # sixth line: ds
-
-    # compute dx, dy, ds from dA, db, dc
-
-    # compute dA, db, dc from dx, dy, dx
-    pass
-
-
-# do all dense
-def load_derivative_and_adjoint(file):
-    # first line: dA
-    # second line: db
-    # third line: dc
-
-    # fourth line: dx
-    # fifth line: dy
-    # sixth line: ds
-
-    # compute dx, dy, ds from dA, db, dc
-
-    # compute dA, db, dc from dx, dy, dx
-    pass
+    with open(file, "w") as file:
+        vals = dA.T.flatten()  # column major order
+        file.write(_vec2str(vals))
+        file.write("\n")
+        file.write(_vec2str(db))
+        file.write("\n")
+        file.write(_vec2str(dc))
+        file.write("\n")
+        file.write(_vec2str(dx))
+        file.write("\n")
+        file.write(_vec2str(dy))
+        file.write("\n")
+        file.write(_vec2str(ds))
 
 
 if __name__ == '__main__':
