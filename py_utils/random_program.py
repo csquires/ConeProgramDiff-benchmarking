@@ -2,6 +2,8 @@ import numpy as np
 from scipy import sparse
 import diffcp
 import os
+import ipdb
+from scipy.sparse import csr_matrix
 
 
 def random_cone_prog(m, n, cone_dict):
@@ -38,11 +40,15 @@ def save_cone_program(folder, program):
 
 
 def load_cone_program(folder):
-    with open(f"{folder}/A.txt", "r") as file:
-        row_ixs, col_ixs, vals = file.readlines()
-        # TODO: finish formatting into sparse matrix
     b = np.loadtxt(f'{folder}/b.txt')
     c = np.loadtxt(f'{folder}/c.txt')
+    with open(f"{folder}/A.txt", "r") as file:
+        row_ixs, col_ixs, vals = file.readlines()
+        row_ixs = [int(ix) for ix in row_ixs[:-1].split("\t")]
+        col_ixs = [int(ix) for ix in col_ixs[:-1].split("\t")]
+        vals = [float(val) for val in vals[:-1].split("\t")]
+        A = csr_matrix((vals, (row_ixs, col_ixs)), shape=(len(b), len(c)))
+
     if os.path.exists(f'{folder}/x_star.txt'):
         x_star = np.loadtxt(f'{folder}/x_star.txt')
         y_star = np.loadtxt(f'{folder}/y_star.txt')
