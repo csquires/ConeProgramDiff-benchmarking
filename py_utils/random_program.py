@@ -19,43 +19,68 @@ def random_cone_prog(m, n, cone_dict):
     return dict(A=A, b=b, c=c, x_star=x_star, y_star=y_star, s_star=s_star)
 
 
-def save_cone_program(folder, program):
-    os.makedirs(folder, exist_ok=True)
+def _vec2str(v):
+    return "\t".join(map(str, v))
 
+
+def _str2vec(s, t):
+    return np.array([t(val) for val in s[:-1].split("\t")])
+
+
+# TODO: dense
+def save_cone_program(file, program, dense=False):
     A = program["A"]
-    row_ixs, col_ixs = A.nonzero()
-    with open(f"{folder}/A.txt", "w") as file:
-        file.write("\t".join(map(str, row_ixs)))
+    with open(file, "w") as file:
+        if dense:
+            vals = A.T.flatten()  # column major order
+            file.write(_vec2str(vals))
+            file.write("\n")
+        else:
+            row_ixs, col_ixs = A.nonzero()
+            file.write(_vec2str(row_ixs))
+            file.write("\n")
+            file.write(_vec2str(col_ixs))
+            file.write("\n")
+            file.write(_vec2str(A.data))
+            file.write("\n")
+
+        file.write(_vec2str(program['b']))
         file.write("\n")
-        file.write("\t".join(map(str, col_ixs)))
+        file.write(_vec2str(program['c']))
         file.write("\n")
-        file.write("\t".join(map(str, A.data)))
-        file.write("\n")
-    np.savetxt(f'{folder}/b.txt', program['b'])
-    np.savetxt(f'{folder}/c.txt', program['c'])
-    if "x_star" in program:
-        np.savetxt(f'{folder}/x_star.txt', program["x_star"])
-        np.savetxt(f'{folder}/y_star.txt', program["y_star"])
-        np.savetxt(f'{folder}/s_star.txt', program["s_star"])
+        if "x_star" in program:
+            file.write(_vec2str(program["x_star"]))
+            file.write("\n")
+            file.write(_vec2str(program["y_star"]))
+            file.write("\n")
+            file.write(_vec2str(program["s_star"]))
 
 
-def load_cone_program(folder):
-    b = np.loadtxt(f'{folder}/b.txt')
-    c = np.loadtxt(f'{folder}/c.txt')
-    with open(f"{folder}/A.txt", "r") as file:
-        row_ixs, col_ixs, vals = file.readlines()
-        row_ixs = [int(ix) for ix in row_ixs[:-1].split("\t")]
-        col_ixs = [int(ix) for ix in col_ixs[:-1].split("\t")]
-        vals = [float(val) for val in vals[:-1].split("\t")]
-        A = csr_matrix((vals, (row_ixs, col_ixs)), shape=(len(b), len(c)))
+# TODO: dense
+def load_cone_program(file, dense=False):
+    with open(file, "r") as file:
+        lines = file.readlines()
+        if dense:
+            b = _str2vec(lines[1], float)
+            c = _str2vec(lines[2], float)
+            vals = _str2vec(lines[0], float)
+            A = vals.reshape(len(b), len(c))  # column major order?
+        else:
+            b = _str2vec(lines[3], float)
+            c = _str2vec(lines[4], float)
+            row_ixs, col_ixs, vals = lines[:3]
+            row_ixs = _str2vec(row_ixs, int)
+            col_ixs = _str2vec(col_ixs, int)
+            vals = _str2vec(vals, float)
+            A = csr_matrix((vals, (row_ixs, col_ixs)), shape=(len(b), len(c)))
 
-    if os.path.exists(f'{folder}/x_star.txt'):
-        x_star = np.loadtxt(f'{folder}/x_star.txt')
-        y_star = np.loadtxt(f'{folder}/y_star.txt')
-        s_star = np.loadtxt(f'{folder}/s_star.txt')
-        return dict(A=A, b=b, c=c, x_star=x_star, y_star=y_star, s_star=s_star)
-    else:
-        return dict(A=A, b=b, c=c)
+        if (dense and len(lines) == 6) or len(lines) == 8:  # x_star, y_star, s_star exist
+            x_star = _str2vec(lines[-3], float)
+            y_star = _str2vec(lines[-2], float)
+            s_star = _str2vec(lines[-1], float)
+            return dict(A=A, b=b, c=c, x_star=x_star, y_star=y_star, s_star=s_star)
+        else:
+            return dict(A=A, b=b, c=c)
 
 
 if __name__ == '__main__':
@@ -69,5 +94,10 @@ if __name__ == '__main__':
     n = 5
 
     program = random_cone_prog(m, n, cone_dict)
-    save_cone_program("random_programs/test", program)
-    p = load_cone_program("random_programs/test")
+    save_cone_program("random_programs/test.txt", program)
+    p = load_cone_program("random_programs/test.txt")
+
+    program_dense = program.copy()
+    program_dense["A"] = program["A"].toarray()
+    save_cone_program("random_programs/test_dense.txt", program_dense, dense=True)
+    p_dense = load_cone_program("random_programs/test_dense.txt", dense=True)
