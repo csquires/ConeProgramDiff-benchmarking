@@ -81,6 +81,25 @@ def load_cone_program(file, dense=False):
             return dict(A=A, b=b, c=c)
 
 
+# do all dense
+def save_derivative_and_adjoint(input_sensitivities, reverse_sensitivities):
+    dA, db, dc = input_sensitivities
+    dx, dy, ds = reverse_sensitivities
+
+    # first line: dA
+    # second line: db
+    # third line: dc
+
+    # fourth line: dx
+    # fifth line: dy
+    # sixth line: ds
+
+    # compute dx, dy, ds from dA, db, dc
+
+    # compute dA, db, dc from dx, dy, dx
+    pass
+
+
 if __name__ == '__main__':
     import random
     np.random.seed(120312)
