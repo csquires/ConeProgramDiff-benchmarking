@@ -62,8 +62,8 @@ def main(n=3, p=3):
     end = time.perf_counter()
     print("Evaluate adjoint of derivative: %.2f s." % (end - start))
 
-    save_cone_program("test_programs/sdp_test_program.txt", dict(A=A, b=b, c=c))
-    save_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt", (dA.todense(), db, dc), (dx, dy, ds))
+    save_cone_program("test_programs/sdp_test_program.txt", dict(A=A, b=b, c=c, x_star=x, y_star=y, s_star=s), dense=False)
+    save_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt", (dA.toarray(), db, dc), (dx, dy, ds))
 
 
 if __name__ == '__main__':

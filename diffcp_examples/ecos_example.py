@@ -21,11 +21,11 @@ np.random.seed(0)
 
 program = random_cone_prog(m, n, K)
 A, b, c = program["A"], program["b"], program["c"]
-save_cone_program("test_programs/ecos_test_program.txt", program=dict(A=A, b=b, c=c))
 
 # We solve the cone program and get the derivative and its adjoint
 x, y, s, derivative, adjoint_derivative = diffcp.solve_and_derivative(
     A, b, c, K, solve_method="ECOS", verbose=False)
+save_cone_program("test_programs/ecos_test_program.txt", program=dict(A=A, b=b, c=c, x_star=x, y_star=y, s_star=s), dense=False)
 
 print("x =", x)
 print("y =", y)
@@ -37,7 +37,7 @@ dx, dy, ds = derivative(A, b, c)
 dA, db, dc = adjoint_derivative(c, np.zeros(
     m), np.zeros(m), atol=1e-10, btol=1e-10)
 
-save_derivative_and_adjoint("test_programs/ecos_test_derivatives.txt", (dA.todense(), db, dc), (dx, dy, ds))
+save_derivative_and_adjoint("test_programs/ecos_test_derivatives.txt", (dA.toarray(), db, dc), (dx, dy, ds))
 # The gradient of the objective with respect to b should be
 # equal to minus the dual variable y (see, e.g., page 268 of Convex Optimization by
 # Boyd & Vandenberghe).
