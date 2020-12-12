@@ -67,7 +67,7 @@ def main(n=3, p=3):
 
     save_cone_program("test_programs/sdp_test_program.txt", dict(A=A, b=b, c=c, x_star=x, y_star=y, s_star=s), dense=False)
     forward_sensitivities = np.ones(A.shape), np.ones(b.shape), np.ones(c.shape)
-    reverse_sensitivities = diffcp.cones.vec_symm(np.ones(C.shape)), np.ones(y.size), np.ones(s.size)
+    reverse_sensitivities = diffcp.cones.vec_symm(np.ones(C.shape)), np.ones(y.size), np.ones(s.size)  # TODO: this doesn't give a vector of all ones
     print(reverse_sensitivities)
     save_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt", derivative, adjoint_derivative, forward_sensitivities, reverse_sensitivities)
 
