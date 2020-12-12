@@ -1,7 +1,6 @@
 import diffcp
-
+from py_utils.random_program import random_cone_prog
 import numpy as np
-import utils
 np.set_printoptions(precision=5, suppress=True)
 
 
@@ -19,7 +18,8 @@ n = 5
 
 np.random.seed(0)
 
-A, b, c = utils.random_cone_prog(m, n, K)
+program = random_cone_prog(m, n, K)
+A, b, c = program["A"], program["b"], program["c"]
 
 # We solve the cone program and get the derivative and its adjoint
 x, y, s, derivative, adjoint_derivative = diffcp.solve_and_derivative(
