@@ -94,6 +94,7 @@ def save_derivative_and_adjoint(file, derivative, adjoint_derivative, forward_se
         file.write(_vec2str(dy))
         file.write("\n")
         file.write(_vec2str(ds))
+        file.write("\n")
 
         # Adjoint
         dx, dy, ds = reverse_sensitivities
