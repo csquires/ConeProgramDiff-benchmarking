@@ -58,12 +58,17 @@ def main(n=3, p=3):
 
     # Adjoint of derivative
     start = time.perf_counter()
+    print(A.shape)
+    print(b.shape)
+    print(c.shape)
     dx, dy, ds = derivative(A, b, c, **lsqr_args)
     end = time.perf_counter()
     print("Evaluate adjoint of derivative: %.2f s." % (end - start))
 
     save_cone_program("test_programs/sdp_test_program.txt", dict(A=A, b=b, c=c, x_star=x, y_star=y, s_star=s), dense=False)
-    save_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt", (dA.toarray(), db, dc), (dx, dy, ds))
+    forward_sensitivities = np.ones(A.shape), np.ones(b.shape), np.ones(c.shape)
+    reverse_sensitivities = diffcp.cones.vec_symm(np.ones(C.shape)), np.ones(y.size), np.ones(s.size)
+    save_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt", derivative, adjoint_derivative, forward_sensitivities, reverse_sensitivities)
 
 
 if __name__ == '__main__':

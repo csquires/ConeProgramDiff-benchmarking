@@ -72,13 +72,15 @@ def load_cone_program(file, dense=False):
             return dict(A=A, b=b, c=c)
 
 
-def save_derivative_and_adjoint(file, reverse_sensitivities, forward_sensitivities):
+def save_derivative_and_adjoint(file, derivative, adjoint_derivative, forward_sensitivities, reverse_sensitivities):
     ensure_folder(file)
     # output order is dA, db, dc, dx, dy, ds.
-    dA, db, dc = reverse_sensitivities
-    dx, dy, ds = forward_sensitivities
 
     with open(file, "w") as file:
+        # Forward
+        dA, db, dc = forward_sensitivities
+        dx, dy, ds = derivative(dA, db, dc)
+        #   dA, db, dc
         vals = dA.T.flatten()  # column major order
         file.write(_vec2str(vals))
         file.write("\n")
@@ -86,6 +88,25 @@ def save_derivative_and_adjoint(file, reverse_sensitivities, forward_sensitiviti
         file.write("\n")
         file.write(_vec2str(dc))
         file.write("\n")
+        #   dx, dy, ds
+        file.write(_vec2str(dx))
+        file.write("\n")
+        file.write(_vec2str(dy))
+        file.write("\n")
+        file.write(_vec2str(ds))
+
+        # Adjoint
+        dx, dy, ds = reverse_sensitivities
+        dA, db, dc = adjoint_derivative(dx, dy, ds)
+        #   dA, db, dc
+        vals = dA.toarray().T.flatten()  # column major order
+        file.write(_vec2str(vals))
+        file.write("\n")
+        file.write(_vec2str(db))
+        file.write("\n")
+        file.write(_vec2str(dc))
+        file.write("\n")
+        #   dx, dy, ds
         file.write(_vec2str(dx))
         file.write("\n")
         file.write(_vec2str(dy))
@@ -93,6 +114,7 @@ def save_derivative_and_adjoint(file, reverse_sensitivities, forward_sensitiviti
         file.write(_vec2str(ds))
 
 
+# TODO: re-write loader to have 12-line format
 def load_derivative_and_adjoint(file):
     # assume input order is dA, db, dc, dx, dy, ds.
     with open(file, "r") as file:
