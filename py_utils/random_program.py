@@ -82,7 +82,7 @@ def load_cone_program(file, dense=False):
 
 
 def load_derivative_and_adjoint(file):
-    # dA, db, dc, dx, dy, ds
+    # assume input order is dA, db, dc, dx, dy, ds.
     with open(file, "r") as file:
         lines = file.readlines()
         db = _str2vec(lines[1], float)
@@ -96,8 +96,8 @@ def load_derivative_and_adjoint(file):
         return dict(dA=dA, db=db, dc=dc, dx=dx, dy=dy, ds=ds)
 
 
-# do all dense
 def save_derivative_and_adjoint(file, input_sensitivities, reverse_sensitivities):
+    # output order is dA, db, dc, dx, dy, ds.
     dA, db, dc = input_sensitivities
     dx, dy, ds = reverse_sensitivities
 
