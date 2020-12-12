@@ -1,6 +1,6 @@
 import diffcp
 from py_utils.random_program import random_cone_prog
-from py_utils.loaders import save_cone_program, save_derivative_and_adjoint
+from py_utils.loaders import save_cone_program, save_derivative_and_adjoint, load_derivative_and_adjoint
 import numpy as np
 np.set_printoptions(precision=5, suppress=True)
 
@@ -17,7 +17,7 @@ K = {
 m = 3 + 3 + 5
 n = 5
 
-np.random.seed(0)
+np.random.seed(11)
 
 program = random_cone_prog(m, n, K)
 A, b, c = program["A"], program["b"], program["c"]
@@ -45,3 +45,5 @@ save_derivative_and_adjoint("test_programs/ecos_test_derivatives.txt", derivativ
 # Boyd & Vandenberghe).
 print("db =", db)
 print("-y =", -y)
+
+d = load_derivative_and_adjoint("test_programs/ecos_test_derivatives.txt")

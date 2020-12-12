@@ -115,9 +115,9 @@ def save_derivative_and_adjoint(file, derivative, adjoint_derivative, forward_se
         file.write(_vec2str(ds))
 
 
-# TODO: re-write loader to have 12-line format
 def load_derivative_and_adjoint(file):
     # assume input order is dA, db, dc, dx, dy, ds.
+    res = dict()
     with open(file, "r") as file:
         lines = file.readlines()
         db = _str2vec(lines[1], float)
@@ -127,8 +127,18 @@ def load_derivative_and_adjoint(file):
         dx = _str2vec(lines[3], float)
         dy = _str2vec(lines[4], float)
         ds = _str2vec(lines[5], float)
+        res["forward"] = dict(dA=dA, db=db, dc=dc, dx=dx, dy=dy, ds=ds)
 
-        return dict(dA=dA, db=db, dc=dc, dx=dx, dy=dy, ds=ds)
+        db = _str2vec(lines[7], float)
+        dc = _str2vec(lines[8], float)
+        dA = _str2vec(lines[6], float).reshape((len(db), len(dc)))
+
+        dx = _str2vec(lines[9], float)
+        dy = _str2vec(lines[10], float)
+        ds = _str2vec(lines[11], float)
+        res["backward"] = dict(dA=dA, db=db, dc=dc, dx=dx, dy=dy, ds=ds)
+
+        return res
 
 
 if __name__ == '__main__':
