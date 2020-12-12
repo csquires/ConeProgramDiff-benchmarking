@@ -1,7 +1,7 @@
 import cvxpy as cp
 import diffcp
 import numpy as np
-
+from py_utils
 import time
 
 
@@ -61,6 +61,7 @@ def main(n=3, p=3):
     dx, dy, ds = derivative(A, b, c, **lsqr_args)
     end = time.perf_counter()
     print("Evaluate adjoint of derivative: %.2f s." % (end - start))
+
 
 if __name__ == '__main__':
     np.random.seed(0)
