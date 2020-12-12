@@ -9,9 +9,9 @@ np.set_printoptions(precision=5, suppress=True)
 # defined as a product of a 3-d fixed cone, 3-d positive orthant cone,
 # and a 5-d second order cone.
 K = {
-    'f': 3,
-    'l': 3,
-    'q': [5]
+    'f': 3,  # ZERO
+    'l': 3,  # POS
+    'q': [5]  # SOC
 }
 
 m = 3 + 3 + 5
