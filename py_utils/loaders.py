@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.sparse import csr_matrix
+import os
 
 
 def _vec2str(v):
@@ -10,7 +11,14 @@ def _str2vec(s, t):
     return np.array([t(val) for val in s[:-1].split("\t")])
 
 
+def ensure_folder(file):
+    folder = os.path.dirname(file)
+    if not os.path.exists(folder):
+        os.makedirs(folder, exist_ok=True)
+
+
 def save_cone_program(file, program, dense=False):
+    ensure_folder(file)
     A = program["A"]
     with open(file, "w") as file:
         if dense:
@@ -64,25 +72,11 @@ def load_cone_program(file, dense=False):
             return dict(A=A, b=b, c=c)
 
 
-def load_derivative_and_adjoint(file):
-    # assume input order is dA, db, dc, dx, dy, ds.
-    with open(file, "r") as file:
-        lines = file.readlines()
-        db = _str2vec(lines[1], float)
-        dc = _str2vec(lines[2], float)
-        dA = _str2vec(lines[0], float).reshape((len(db), len(dc)))
-
-        dx = _str2vec(lines[3], float)
-        dy = _str2vec(lines[4], float)
-        ds = _str2vec(lines[5], float)
-
-        return dict(dA=dA, db=db, dc=dc, dx=dx, dy=dy, ds=ds)
-
-
-def save_derivative_and_adjoint(file, input_sensitivities, reverse_sensitivities):
+def save_derivative_and_adjoint(file, reverse_sensitivities, forward_sensitivities):
+    ensure_folder(file)
     # output order is dA, db, dc, dx, dy, ds.
-    dA, db, dc = input_sensitivities
-    dx, dy, ds = reverse_sensitivities
+    dA, db, dc = reverse_sensitivities
+    dx, dy, ds = forward_sensitivities
 
     with open(file, "w") as file:
         vals = dA.T.flatten()  # column major order
@@ -97,6 +91,21 @@ def save_derivative_and_adjoint(file, input_sensitivities, reverse_sensitivities
         file.write(_vec2str(dy))
         file.write("\n")
         file.write(_vec2str(ds))
+
+
+def load_derivative_and_adjoint(file):
+    # assume input order is dA, db, dc, dx, dy, ds.
+    with open(file, "r") as file:
+        lines = file.readlines()
+        db = _str2vec(lines[1], float)
+        dc = _str2vec(lines[2], float)
+        dA = _str2vec(lines[0], float).reshape((len(db), len(dc)))
+
+        dx = _str2vec(lines[3], float)
+        dy = _str2vec(lines[4], float)
+        ds = _str2vec(lines[5], float)
+
+        return dict(dA=dA, db=db, dc=dc, dx=dx, dy=dy, ds=ds)
 
 
 if __name__ == '__main__':
