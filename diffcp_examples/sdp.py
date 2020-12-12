@@ -1,7 +1,7 @@
 import cvxpy as cp
 import diffcp
 import numpy as np
-
+from py_utils.loaders import save_cone_program, save_derivative_and_adjoint
 import time
 
 
@@ -61,6 +61,10 @@ def main(n=3, p=3):
     dx, dy, ds = derivative(A, b, c, **lsqr_args)
     end = time.perf_counter()
     print("Evaluate adjoint of derivative: %.2f s." % (end - start))
+
+    save_cone_program("test_programs/sdp_test_program.txt", dict(A=A, b=b, c=c))
+    save_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt", (dA.todense(), db, dc), (dx, dy, ds))
+
 
 if __name__ == '__main__':
     np.random.seed(0)

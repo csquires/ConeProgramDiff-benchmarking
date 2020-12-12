@@ -1,7 +1,7 @@
 import diffcp
 import numpy as np
 from scipy import sparse
-import utils
+from py_utils.random_program import random_cone_prog
 np.set_printoptions(precision=5, suppress=True)
 
 
@@ -16,7 +16,8 @@ n = 5
 
 np.random.seed(0)
 
-A, b, c = utils.random_cone_prog(m, n, cone_dict)
+program = random_cone_prog(m, n)
+A, b, c = program["A"], program["b"], program["c"]
 
 m, n = A.shape
 x, y, s, D, DT = diffcp.solve_and_derivative(A, b, c, cone_dict)
