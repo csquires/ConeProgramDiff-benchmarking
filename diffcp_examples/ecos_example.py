@@ -37,7 +37,9 @@ dx, dy, ds = derivative(A, b, c)
 dA, db, dc = adjoint_derivative(c, np.zeros(
     m), np.zeros(m), atol=1e-10, btol=1e-10)
 
-save_derivative_and_adjoint("test_programs/ecos_test_derivatives.txt", (dA.toarray(), db, dc), (dx, dy, ds))
+forward_sensitivities = np.ones(A.shape), np.ones(b.shape), np.ones(c.shape)
+backward_sensitivities = np.ones(c.shape), np.ones(m), np.ones(m)
+save_derivative_and_adjoint("test_programs/ecos_test_derivatives.txt", derivative, adjoint_derivative, forward_sensitivities, backward_sensitivities)
 # The gradient of the objective with respect to b should be
 # equal to minus the dual variable y (see, e.g., page 268 of Convex Optimization by
 # Boyd & Vandenberghe).
