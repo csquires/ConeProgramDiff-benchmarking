@@ -6,17 +6,16 @@ using Random
 Random.seed!(0)
 const MOI = MathOptInterface
 
-ConeProgramDiff.cp_from_file()
-files_cp1 = ["ecos_test_program.txt", "ecos_test_derivatives.txt"]
+files_cp1 = ["ecos_test_program.txt", "scs_test_derivatives.txt"]
 test_cp_1 = ConeProgramDiff.cp_from_file(joinpath(@__DIR__, "../..", "test_programs", files_cp1[1]), dense=false)
 deriv_true, adjoint_true = ConeProgramDiff.derivatives_from_file(joinpath(@__DIR__, "../..", "test_programs", files_cp1[2]))
 ecos_cone = [MOI.Zeros(3), MOI.Nonnegatives(3), MOI.SecondOrderCone(5)]
-x, y, s, pf, pb = solve_and_diff(test_cp_1[:A], test_cp_1[:b], test_cp_1[:c], ecos_cone, solver="ECOS")
+x, y, s, pf, pb = solve_and_diff(test_cp_1[:A], test_cp_1[:b], test_cp_1[:c], ecos_cone, solver="SCS")
 dx, dy, ds = adjoint_true[:dx], adjoint_true[:dy], adjoint_true[:ds]
 dA, db, dc = pb(dx, dy, ds)
 
 
-
+isapprox(1e-10, 0)
 dc
 adjoint_true[:dc]
 
