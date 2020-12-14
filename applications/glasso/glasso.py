@@ -13,9 +13,7 @@ prob.solve(requires_grad=True)
 sol = X.value
 
 
-def merge_psd_plus_diag(theta, z, p):
-    theta_size = len(theta)
-    z_size = len(z)
+def merge_psd_plus_diag(theta_size, z_size, p):
     s_size = theta_size + 3*z_size - p
     A = np.zeros((s_size, theta_size+z_size))
 
@@ -49,8 +47,8 @@ def merge_psd_plus_diag(theta, z, p):
 
 def cone_form_glasso(S):
     p = S.shape[0]
-    theta_size = p*(p+1)/2
-    z_size = p*(p+1)/2
+    theta_size = int(p*(p+1)/2)
+    z_size = int(p*(p+1)/2)
     t_size = p
 
     A1 = merge_psd_plus_diag(theta_size, z_size, p)
@@ -65,24 +63,43 @@ def cone_form_glasso(S):
         b2[d*3+1] = 1
         A2[d*3+2, t_ix] = -1
         z_ix += p-d
-    print(A2)
 
     # Equality constraint on t
-    pass
+    A3 = np.zeros((1, p+1))
+    A3[0, :-1] = -1
+    A3[0, -1] = 1
 
     # combine constraint matrices
-    A = np.hstack([
-        np.vstack([A1, np.zeros(A1.shape[0], p+1)]),
-        np.vstack([np.zeros(), A2, np.zeros()]),
-        np.vstack([np.zeros(), 0, None])
+    B1 = np.hstack([A1, np.zeros((A1.shape[0], p+1))])
+    B2 = np.hstack([np.zeros((A2.shape[0], theta_size)), A2, np.zeros((A2.shape[0], 1))])
+    B3 = np.hstack([np.zeros((1, theta_size+z_size)), A3])
+    print(B1.shape)
+    print(B2.shape)
+    print(B3.shape)
+    # should all have same number of columns (theta_size + z_size + t_size + 1)
+    A = np.vstack([
+        B1,
+        B2,
+        B3
     ])
+    b = np.zeros(A.shape[0])
+    # TODO: fill in b2
+
+    # TODO: fill in c from S
+    c = np.zeros(A.shape[1])
+
+    return A, b, c
 
 
 if __name__ == '__main__':
+    A = np.random.normal(size=(10, 3))
+    S = A.T @ A
+    cone_form_glasso(S)
+
     theta = [1, 2, 3, 4, 5, 6]
     z = [7, 8, 9, 10, 11, 12]
     x = np.array([*theta, *z])
-    A = merge_psd_plus_diag(theta, z, 3)
+    A = merge_psd_plus_diag(len(theta), len(z), 3)
     merged = A @ x
     merged_true = np.array([1, 2, 3, 7, 8, 9, 4, 5, 0, 10, 11, 6, 0, 0, 12, 7, 0, 0, 10, 0, 12])
     print(np.all(merged == merged_true))
