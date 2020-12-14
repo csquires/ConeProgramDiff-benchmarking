@@ -18,13 +18,15 @@ def cvgm(samples, prob, alpha0, K=10, p=0.7, tol=1e-4, gradient_update=gradient_
 
     diff = float('inf')
     curr_alpha = alpha0
+    A, b, c = prob["A"], prob["b"], prob["c"]
     while diff > tol:
         solutions = []
         for training_data in training_datasets:
-            x, y, s, derivative, adjoint_derivative = solve_and_derivative(prob["A"], prob["b"], prob["c"], training_data, curr_alpha)
+            x, y, s, derivative, adjoint_derivative = solve_and_derivative(A, b, c, training_data, curr_alpha)
             solutions.append(None)
 
         # calculate gradient of validation loss w.r.t. alpha
+        dA, db, dc = adjoint_derivative(np.ones(x.shape), np.zeros(y.shape), np.zeros(s.shape))
         alpha_grad = None
 
         # update alpha
