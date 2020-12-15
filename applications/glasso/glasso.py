@@ -70,10 +70,11 @@ def cone_form_glasso(S, lambda_):
     b2 = np.zeros(3*p)
     for d in range(p):
         t_ix = z_size+d
-        A2[d*3, z_ix] = -1
+        A2[d*3, z_ix] = 1
         b2[d*3+1] = 1
-        A2[d*3+2, t_ix] = -1
+        A2[d*3+2, t_ix] = 1
         z_ix += p-d
+    print(A2)
 
     # Equality constraint on t
     A3 = np.zeros((1, p+1))
