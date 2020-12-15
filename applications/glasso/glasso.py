@@ -2,9 +2,12 @@ import cvxpy as cp
 import numpy as np
 import diffcp
 from scipy.sparse import csc_matrix
+import numpy as np
+
+sqrt2 = np.sqrt(2)
 
 p = 5
-lambda_ = 100
+lambda_ = 0
 A = np.random.normal(size=(p*2, p))
 S = A.T @ A
 X = cp.Variable((p, p), symmetric=True)
@@ -16,13 +19,17 @@ sol = X.value
 
 
 def _symmetric2vec(A):
-    return A.T[np.triu_indices_from(A)]
+    B = A + A.T
+    B[np.diag_indices_from(B)] /= 2
+    return B.T[np.triu_indices_from(B)]
 
 
 def _vec2symmetric(a, dim):
     A = np.zeros((dim, dim))
     A[np.triu_indices_from(A)] = a
-    return A.T
+    A = A + A.T
+    A[np.diag_indices_from(A)] /= 2
+    return A
 
 
 def merge_psd_plus_diag(theta_size, z_size, p):
@@ -33,7 +40,7 @@ def merge_psd_plus_diag(theta_size, z_size, p):
     i, j = 0, 0
     for k in range(p, 0, -1):
         for k_ in range(k):
-            A[i, j] = 1
+            A[i, j] = 1 if k_ == 0 else sqrt2
             i += 1
             j += 1
         i += p
@@ -42,7 +49,7 @@ def merge_psd_plus_diag(theta_size, z_size, p):
     i, j = p, theta_size
     for k in range(p, 0, -1):
         for k_ in range(k):
-            A[i, j] = 1
+            A[i, j] = sqrt2
             i += 1
             j += 1
         i += p
@@ -57,7 +64,7 @@ def merge_psd_plus_diag(theta_size, z_size, p):
     return A
 
 
-def cone_form_glasso(S, lambda_):
+def write_glasso_cone_program(S, lambda_):
     p = S.shape[0]
     theta_size = int(p*(p+1)/2)
     z_size = int(p*(p+1)/2)
@@ -70,9 +77,9 @@ def cone_form_glasso(S, lambda_):
     b2 = np.zeros(3*p)
     for d in range(p):
         t_ix = z_size+d
-        A2[d*3, z_ix] = 1
+        A2[d*3, z_ix] = -1
         b2[d*3+1] = 1
-        A2[d*3+2, t_ix] = 1
+        A2[d*3+2, t_ix] = -1
         z_ix += p-d
     print(A2)
 
@@ -99,19 +106,45 @@ def cone_form_glasso(S, lambda_):
     c[-1] = -1
 
     cone_dict = {
+        "f": 1,  # zero cone
         "s": 2*p,  # PSD
         "ep": p,  # exponential cone
-        "f": 1,  # zero cone
     }
     A = csc_matrix(A)
-    return A, b, c, cone_dict
+
+    # reshape so that zero cone is first, then PSD, then exponential
+    A_ = A.copy()
+    A_[1:] = A[0:-1]
+    A_[0] = A[-1]
+    b_ = b.copy()
+    b_[1:] = b[:-1]
+    b_[0] = b[-1]
+    return A_, b_, c, cone_dict
 
 
 if __name__ == '__main__':
-    a = np.random.normal(size=(10, 3))
-    S = a.T @ a
-    A, b, c, cone_dict = cone_form_glasso(S, 1.)
-    sol = diffcp.solve_and_derivative(A, b, c, cone_dict)
+    import sympy
+    from sympy import Matrix
+    import scs
+    import ecos
+    a = np.random.normal(size=(100, 3))
+    S = np.corrcoef(a, rowvar=False)
+    A, b, c, cone_dict = write_glasso_cone_program(S, 1.)
+    x = Matrix(sympy.symbols([
+        "theta11", "theta21", "theta31", "theta22", "theta32", "theta33",
+        "z11", "z21", "z31", "z22", "z32", "z33",
+        "t1", "t2", "t3", "t"
+    ]))
+
+    print(Matrix(b) - Matrix(A.toarray()) @ x)
+    print(Matrix(c).T @ x)
+    # sol = diffcp.solve_and_derivative(A, b, c, cone_dict)
+    K = np.linalg.inv(S)
+    guess = np.zeros(A.shape[1])
+    guess[:6] = K[np.triu_indices_from(K)]
+    sol = scs.solve(dict(A=A, b=b, c=c), cone_dict, eps=1e-12, max_iters=2000, verbose=True, acceleration_lookback=10)
+    x = sol["x"]
+    theta = _vec2symmetric(x[:6], 3)
 
     # theta = [1, 2, 3, 4, 5, 6]
     # z = [7, 8, 9, 10, 11, 12]
