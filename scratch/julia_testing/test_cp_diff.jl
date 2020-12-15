@@ -6,39 +6,60 @@ using Random
 Random.seed!(0)
 const MOI = MathOptInterface
 
-ConeProgramDiff.cp_from_file()
+# ConeProgramDiff.cp_from_file()
 files_cp1 = ["ecos_test_program.txt", "ecos_test_derivatives.txt"]
 test_cp_1 = ConeProgramDiff.cp_from_file(joinpath(@__DIR__, "../..", "test_programs", files_cp1[1]), dense=false)
 deriv_true, adjoint_true = ConeProgramDiff.derivatives_from_file(joinpath(@__DIR__, "../..", "test_programs", files_cp1[2]))
 ecos_cone = [MOI.Zeros(3), MOI.Nonnegatives(3), MOI.SecondOrderCone(5)]
-x, y, s, pf, pb = solve_and_diff(test_cp_1[:A], test_cp_1[:b], test_cp_1[:c], ecos_cone, solver="ECOS")
+x, y, s, pf, pb = solve_and_diff(test_cp_1[:A], test_cp_1[:b], test_cp_1[:c], ecos_cone, solver="SCS")
 dx, dy, ds = adjoint_true[:dx], adjoint_true[:dy], adjoint_true[:ds]
+
+
+files_cp2 = ["scs_test_program.txt", "scs_test_derivatives.txt"]
+test_cp_2 = ConeProgramDiff.cp_from_file(joinpath(@__DIR__, "../..", "test_programs", files_cp2[1]), dense=false)
+deriv_true, adjoint_true = ConeProgramDiff.derivatives_from_file(joinpath(@__DIR__, "../..", "test_programs", files_cp2[2]))
+x, y, s, pf, pb = solve_and_diff(test_cp_2[:A], test_cp_2[:b], test_cp_2[:c], ecos_cone, solver="SCS")
+dx, dy, ds = adjoint_true[:dx], adjoint_true[:dy], adjoint_true[:ds]
+A, b, c = test_cp_2[:A], test_cp_2[:b], test_cp_2[:c]
 dA, db, dc = pb(dx, dy, ds)
+test_cp_2[:y_star]
+y
+adjoint_true[:dA] ./ dA
 
-
-
-dc
+adjoint_true[:db] ./ db
 adjoint_true[:dc]
+dc
 
 
+test_cp_2[:y_star]
+y[end-4] >= sqrt(sum((y[end-3:end]).^2))
+# check dual
+all(isapprox.(test_cp_2[:A]'*y + test_cp_2[:c], 0, atol=1e-4))
+isapprox(test_cp_2[:x_star], x, atol=1e-5)
+isapprox(test_cp_2[:y_star], y, atol=1e-5)
+isapprox(test_cp_2[:s_star], s, atol=1e-5)
 
+using LinearAlgebra
+dot(test_cp_2[:y_star], test_cp_2[:b])
+dot(y, test_cp_2[:b])
 
+test_cp_2[:x_star]
 
-
-
-
-adjoint_true[:dA]
+adjoint_true[:dA] + dA
 db
 
+test_cp_1[:A]'*y - test_cp_1[:c]
 
-sum(abs.(test_cp_1[:x_star]  - x) ./ test_cp_1[:x_star])
+(abs.(test_cp_2[:x_star]  - x))
 
 test_cp_1[:x_star]' * test_cp_1[:c] ≈ x' * test_cp_1[:c]
 abs(test_cp_1[:x_star]' * test_cp_1[:c] - x' * test_cp_1[:c])
+test_cp_2[:y_star]
+y
 
-test_cp_1[:x_star] ≈ x
-test_cp_1[:y_star] ≈ y
-test_cp_1[:y_star] ≈ -y
+
+test_cp_2[:y_star]
+test_cp_2[:y_star] ≈ -y
 y
 test_cp_1[:s_star] ≈ s
 x
