@@ -65,6 +65,11 @@ def merge_psd_plus_diag(theta_size, z_size, p):
 
 
 def write_glasso_cone_program(S, lambda_):
+    """
+    S: empirical covariance matrix.
+    lambda: sparsity-inducting regularization term. Currently not included for debugging purposes.
+        For now, optimal solution should be the inverse covariance.
+    """
     p = S.shape[0]
     theta_size = int(p*(p+1)/2)
     z_size = int(p*(p+1)/2)
@@ -140,8 +145,6 @@ if __name__ == '__main__':
     print(Matrix(c).T @ x)
     # sol = diffcp.solve_and_derivative(A, b, c, cone_dict)
     K = np.linalg.inv(S)
-    guess = np.zeros(A.shape[1])
-    guess[:6] = K[np.triu_indices_from(K)]
     sol = scs.solve(dict(A=A, b=b, c=c), cone_dict, eps=1e-12, max_iters=2000, verbose=True, acceleration_lookback=10)
     x = sol["x"]
     theta = _vec2symmetric(x[:6], 3)
