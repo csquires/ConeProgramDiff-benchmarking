@@ -1,5 +1,7 @@
 import cvxpy as cp
 import numpy as np
+import diffcp
+from scipy.sparse import csc_matrix
 
 p = 5
 lambda_ = 100
@@ -11,6 +13,16 @@ objective = cp.Minimize(cp.sum(cp.multiply(S, X)) - cp.log_det(X) + lambda_ * cp
 prob = cp.Problem(objective, constraints)
 prob.solve(requires_grad=True)
 sol = X.value
+
+
+def _symmetric2vec(A):
+    return A.T[np.triu_indices_from(A)]
+
+
+def _vec2symmetric(a, dim):
+    A = np.zeros((dim, dim))
+    A[np.triu_indices_from(A)] = a
+    return A.T
 
 
 def merge_psd_plus_diag(theta_size, z_size, p):
@@ -45,13 +57,12 @@ def merge_psd_plus_diag(theta_size, z_size, p):
     return A
 
 
-def cone_form_glasso(S):
+def cone_form_glasso(S, lambda_):
     p = S.shape[0]
     theta_size = int(p*(p+1)/2)
     z_size = int(p*(p+1)/2)
-    t_size = p
 
-    A1 = merge_psd_plus_diag(theta_size, z_size, p)
+    A1 = -merge_psd_plus_diag(theta_size, z_size, p)
 
     # log-det inequality constraint on t_i
     A2 = np.zeros((3*p, z_size+p))
@@ -73,9 +84,6 @@ def cone_form_glasso(S):
     B1 = np.hstack([A1, np.zeros((A1.shape[0], p+1))])
     B2 = np.hstack([np.zeros((A2.shape[0], theta_size)), A2, np.zeros((A2.shape[0], 1))])
     B3 = np.hstack([np.zeros((1, theta_size+z_size)), A3])
-    print(B1.shape)
-    print(B2.shape)
-    print(B3.shape)
     # should all have same number of columns (theta_size + z_size + t_size + 1)
     A = np.vstack([
         B1,
@@ -83,23 +91,34 @@ def cone_form_glasso(S):
         B3
     ])
     b = np.zeros(A.shape[0])
-    # TODO: fill in b2
+    b[A1.shape[0]:(A1.shape[0]+len(b2))] = b2
 
-    # TODO: fill in c from S
     c = np.zeros(A.shape[1])
+    c[:theta_size] = _symmetric2vec(S)
+    c[-1] = -1
 
-    return A, b, c
+    cone_dict = {
+        "s": 2*p,  # PSD
+        "ep": p,  # exponential cone
+        "f": 1,  # zero cone
+    }
+    A = csc_matrix(A)
+    return A, b, c, cone_dict
 
 
 if __name__ == '__main__':
-    A = np.random.normal(size=(10, 3))
-    S = A.T @ A
-    cone_form_glasso(S)
+    a = np.random.normal(size=(10, 3))
+    S = a.T @ a
+    A, b, c, cone_dict = cone_form_glasso(S, 1.)
+    sol = diffcp.solve_and_derivative(A, b, c, cone_dict)
 
-    theta = [1, 2, 3, 4, 5, 6]
-    z = [7, 8, 9, 10, 11, 12]
-    x = np.array([*theta, *z])
-    A = merge_psd_plus_diag(len(theta), len(z), 3)
-    merged = A @ x
-    merged_true = np.array([1, 2, 3, 7, 8, 9, 4, 5, 0, 10, 11, 6, 0, 0, 12, 7, 0, 0, 10, 0, 12])
-    print(np.all(merged == merged_true))
+    # theta = [1, 2, 3, 4, 5, 6]
+    # z = [7, 8, 9, 10, 11, 12]
+    # x = np.array([*theta, *z])
+    # A = merge_psd_plus_diag(len(theta), len(z), 3)
+    # merged = A @ x
+    # merged_true = np.array([1, 2, 3, 7, 8, 9, 4, 5, 0, 10, 11, 6, 0, 0, 12, 7, 0, 0, 10, 0, 12])
+    # m = _vec2symmetric(merged, 6)
+    # merged2 = _symmetric2vec(m)
+    # print(np.all(merged == merged2))
+    # print(np.all(merged == merged_true))
