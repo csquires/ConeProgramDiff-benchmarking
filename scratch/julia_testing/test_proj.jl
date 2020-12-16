@@ -1,10 +1,7 @@
 using ConeProgramDiff
-
-
 using MathOptInterface
-using SCS
+using SCS, JuMP
 using Random
-Random.seed!(0)
 const MOI = MathOptInterface
 
 ## Projection Test Functions
@@ -81,7 +78,7 @@ end
 
 ## dProjection Test Functions
 
-function _test_d_proj(cone; tol=1e-8)
+function _test_d_proj(cone, tol)
     n = MOI.dimension(cone)
     x = randn(n)
     dx = 1e-6 * randn(n)
@@ -91,20 +88,19 @@ function _test_d_proj(cone; tol=1e-8)
 
     dproj_test = ConeProgramDiff._d_proj(x, cone) * dx
     @assert isapprox(dproj_finite_diff, dproj_test, atol=tol)
-
 end
 
 
-function test_d_proj(cone::MOI.AbstractVectorSet)
+function test_d_proj(cone::MOI.AbstractVectorSet; tol=1e-8)
     Random.seed!(0)
     for _ in 1:10
-        _test_d_proj(cone)
-        _test_d_proj(MOI.dual_set(cone))
+        _test_d_proj(cone, tol)
+        _test_d_proj(MOI.dual_set(cone), tol)
     end
 end
 
 
-function test_d_proj(n::Int)
+function test_d_proj(n::Int; tol=tol)
     d_proj_cones = [
         MOI.Zeros(n),
         MOI.Nonnegatives(n),
@@ -112,8 +108,38 @@ function test_d_proj(n::Int)
         MOI.PositiveSemidefiniteConeTriangle(n)
     ]
     for cone in cones
-        test_d_proj(cone)
+        test_d_proj(cone; tol=tol)
     end
+end
+
+
+function test_d_proj_exp(tol)
+    function _helper(x, tol; dual)
+        proj_x = ConeProgramDiff._proj_exp_cone(x,  dual=dual)
+        proj_xdx = ConeProgramDiff._proj_exp_cone(x+dx,  dual=dual)
+        dproj_finite_diff = proj_xdx - proj_x
+        dproj_test = ConeProgramDiff._d_proj_exp_cone(x; dual=dual) * dx
+        # println(dproj_finite_diff)
+        # println(dproj_test)
+        @assert isapprox(dproj_finite_diff, dproj_test, atol=tol)
+    end
+
+    Random.seed!(0)
+    case_p = zeros(4)
+    case_d = zeros(4)
+    for _ in 1:100
+        x = randn(3)
+        dx = 1e-6 * randn(3)
+        case_p[det_case_exp_cone(x; dual=false)] += 1
+        println(det_case_exp_cone(x; dual=false))
+        _helper(x, tol; dual=false)
+
+        case_d[det_case_exp_cone(x; dual=true)] += 1
+        # println(det_case_exp_cone(x; dual=true))
+        # println(x)
+        _helper(x, tol; dual=true)
+    end
+    @assert all(case_p .> 0) && all(case_d .> 0)
 end
 
 
@@ -123,6 +149,7 @@ test_proj_pos()
 test_proj_soc()
 test_proj_psd()
 test_d_proj(10)
+test_d_proj_exp(1e-6)
 
 
 ## Test pi and project_onto_cone functions
@@ -199,36 +226,32 @@ test_d_project_onto_cone()
 
 ## Test Exponential Cone
 
-_proj_exp_cone(v)
-Random.seed!(0)
-x = randn(3)
-
-function _test_proj_exp_cone_help(;dual=false)
-    cone = dual ? MOI.DualExponentialCone() : MOI.ExponentialCone()
-    model = Model()
-    set_optimizer(model, optimizer_with_attributes(SCS.Optimizer, "eps" => 1e-8, "max_iters" => 10000, "verbose" => 0))
-    @variable(model, z[1:3])
-    @variable(model, t)
-    @objective(model, Min, t)
-    @constraint(model, sum((x-z).^2) <= t)
-    @constraint(model, z in cone)
-    optimize!(model)
-    z_star = value.(z)
-    @assert ConeProgramDiff._proj_exp_cone(x,  dual=dual) ≈ z_star
+function det_case_exp_cone(v; dual=false)
+    v = dual ? -v : v
+    if ConeProgramDiff.in_exp_cone(v)
+        return 1
+    elseif ConeProgramDiff.in_exp_cone_dual(v)
+        return 2
+    elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
+        return 3
+    else
+        return 4
+    end
 end
 
-function test_proj_exp()
-    function det_case(v; dual=false)
-        v = dual ? -v : v
-        if ConeProgramDiff.in_exp_cone(v)
-            return 1
-        elseif ConeProgramDiff.in_exp_cone_dual(v)
-            return 2
-        elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
-            return 3
-        else
-            return 4
-        end
+function test_proj_exp(tol)
+    function _test_proj_exp_cone_help(x, tol; dual=false)
+        cone = dual ? MOI.DualExponentialCone() : MOI.ExponentialCone()
+        model = Model()
+        set_optimizer(model, optimizer_with_attributes(SCS.Optimizer, "eps" => 1e-8, "max_iters" => 10000, "verbose" => 0))
+        @variable(model, z[1:3])
+        @variable(model, t)
+        @objective(model, Min, t)
+        @constraint(model, sum((x-z).^2) <= t)
+        @constraint(model, z in cone)
+        optimize!(model)
+        z_star = value.(z)
+        @assert isapprox(ConeProgramDiff._proj_exp_cone(x,  dual=dual), z_star, atol=tol)
     end
 
     Random.seed!(0)
@@ -238,16 +261,20 @@ function test_proj_exp()
     for _ in 1:100
         # x = ConeProgramDiff._proj_exp_cone(x) + randn(3)
         x = randn(3)
-        case_p[det_case(x; dual=false)] += 1
-        _test_proj_exp_cone_help(dual=false)
+        # println(x)
+        case_p[det_case_exp_cone(x; dual=false)] += 1
+        _test_proj_exp_cone_help(x, tol; dual=false)
 
-        case_d[det_case(x; dual=true)] += 1
-        _test_proj_exp_cone_help(dual=true)
+        case_d[det_case_exp_cone(x; dual=true)] += 1
+        _test_proj_exp_cone_help(x, tol; dual=true)
     end
     @assert all(case_p .> 0) && all(case_d .> 0)
 end
 
-test_proj_exp()
+test_proj_exp(1e-7)
+
+x = rand(3)
+ConeProgramDiff._d_proj_exp_cone(x, dual=false)
 
 # sum(abs.(v - (vp + vd)))
 # dot(vp, vd)
