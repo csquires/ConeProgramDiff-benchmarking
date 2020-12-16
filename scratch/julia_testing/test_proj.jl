@@ -197,5 +197,62 @@ tol
 test_project_onto_cone()
 test_d_project_onto_cone()
 
+## Test Exponential Cone
 
-## Test Solve and Derivative function
+_proj_exp_cone(v)
+Random.seed!(0)
+x = randn(3)
+
+function _test_proj_exp_cone_help(;dual=false)
+    cone = dual ? MOI.DualExponentialCone() : MOI.ExponentialCone()
+    model = Model()
+    set_optimizer(model, optimizer_with_attributes(SCS.Optimizer, "eps" => 1e-8, "max_iters" => 10000, "verbose" => 0))
+    @variable(model, z[1:3])
+    @variable(model, t)
+    @objective(model, Min, t)
+    @constraint(model, sum((x-z).^2) <= t)
+    @constraint(model, z in cone)
+    optimize!(model)
+    z_star = value.(z)
+    @assert ConeProgramDiff._proj_exp_cone(x,  dual=dual) ≈ z_star
+end
+
+function test_proj_exp()
+    function det_case(v; dual=false)
+        v = dual ? -v : v
+        if ConeProgramDiff.in_exp_cone(v)
+            return 1
+        elseif ConeProgramDiff.in_exp_cone_dual(v)
+            return 2
+        elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
+            return 3
+        else
+            return 4
+        end
+    end
+
+    Random.seed!(0)
+    n = 3
+    case_p = zeros(4)
+    case_d = zeros(4)
+    for _ in 1:100
+        # x = ConeProgramDiff._proj_exp_cone(x) + randn(3)
+        x = randn(3)
+        case_p[det_case(x; dual=false)] += 1
+        _test_proj_exp_cone_help(dual=false)
+
+        case_d[det_case(x; dual=true)] += 1
+        _test_proj_exp_cone_help(dual=true)
+    end
+    @assert all(case_p .> 0) && all(case_d .> 0)
+end
+
+test_proj_exp()
+
+# sum(abs.(v - (vp + vd)))
+# dot(vp, vd)
+# in_exp_cone(vp)
+# in_exp_cone_dual(vd)
+# x
+# get_exp_proj_case4(x)
+# z_star
