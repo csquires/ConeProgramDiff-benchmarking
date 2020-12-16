@@ -98,6 +98,7 @@ def write_glasso_cone_program(S, lambda_):
 
     c = np.zeros(A.shape[1])
     c[:theta_size] = _symmetric2vec(S)
+    c[-m_size:] = lambda_
     c[theta_size+z_size+p] = -1
 
     cone_dict = {
@@ -120,13 +121,23 @@ def write_glasso_cone_program(S, lambda_):
 
 
 if __name__ == '__main__':
+    def _vec2symmetric(a, dim):
+        A = np.zeros((dim, dim))
+        A[np.triu_indices_from(A)] = a
+        A = A + A.T
+        A[np.diag_indices_from(A)] /= 2
+        return A
+
     import sympy
     from sympy import Matrix
     import scs
+    import cvxpy as cp
     import ecos
     a = np.random.normal(size=(100, 3))
     S = np.cov(a, rowvar=False)
-    A, b, c, cone_dict = write_glasso_cone_program(S, 0)
+    lambda_ = 1
+
+    A, b, c, cone_dict = write_glasso_cone_program(S, lambda_)
     x = Matrix(sympy.symbols([
         "theta11", "theta21", "theta31", "theta22", "theta32", "theta33",
         "z11", "z22", "z33", "z21", "z31", "z32",
@@ -145,3 +156,15 @@ if __name__ == '__main__':
     x = sol["x"]
     p = S.shape[0]
     d = int(S.shape[0]*(S.shape[0]+1)/2)
+    theta = _vec2symmetric(x[:d], p)
+    print("Conic form")
+    print(theta)
+
+    print("cvxpy form")
+    X = cp.Variable((p, p), symmetric=True)
+    constraints = [X >> 0]
+    objective = cp.Minimize(cp.sum(cp.multiply(S, X)) - cp.log_det(X) + lambda_*cp.pnorm(X, 1))
+    prob = cp.Problem(objective, constraints)
+    prob.solve()
+    sol = X.value
+    print(sol)
