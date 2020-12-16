@@ -52,7 +52,8 @@ def write_glasso_cone_program(S, lambda_):
     """
     p = S.shape[0]
     theta_size = int(p*(p+1)/2)
-    z_size = int(p*(p+1)/2)
+    z_size = theta_size
+    m_size = theta_size
 
     A1 = -merge_psd_plus_diag(theta_size, z_size, p)
 
@@ -72,36 +73,75 @@ def write_glasso_cone_program(S, lambda_):
     A3[0, :-1] = -1
     A3[0, -1] = 1
 
+    # Absolute value constraint on M
+    A4 = np.zeros((2*theta_size, theta_size + z_size + p + 1 + m_size))
+    # M_ij - Theta_ij >= 0
+    A4[:theta_size, :theta_size] = -np.eye(theta_size)
+    A4[:theta_size, -m_size:] = np.eye(m_size)
+    # M_ij + Theta_ij >= 0
+    A4[theta_size:, :theta_size] = np.eye(theta_size)
+    A4[theta_size:, -m_size:] = np.eye(m_size)
+
     # combine constraint matrices
-    B1 = np.hstack([A1, np.zeros((A1.shape[0], p+1))])
-    B2 = np.hstack([np.zeros((A2.shape[0], theta_size)), A2, np.zeros((A2.shape[0], 1))])
-    B3 = np.hstack([np.zeros((1, theta_size+z_size)), A3])
+    B1 = np.hstack([A1, np.zeros((A1.shape[0], p+1+m_size))])
+    B2 = np.hstack([np.zeros((A2.shape[0], theta_size)), A2, np.zeros((A2.shape[0], 1+m_size))])
+    B3 = np.hstack([np.zeros((1, theta_size+z_size)), A3, np.zeros((1, m_size))])
     # should all have same number of columns (theta_size + z_size + t_size + 1)
     A = np.vstack([
         B1,
         B2,
-        B3
+        B3,
+        -A4
     ])
     b = np.zeros(A.shape[0])
     b[A1.shape[0]:(A1.shape[0]+len(b2))] = b2
 
     c = np.zeros(A.shape[1])
     c[:theta_size] = _symmetric2vec(S)
-    c[-1] = -1
+    c[theta_size+z_size+p] = -1
 
     cone_dict = {
         "f": 1,  # zero cone
+        "l": 2*theta_size,  # nonnegative cone
         "s": 2*p,  # PSD
         "ep": p,  # exponential cone
     }
     A = csc_matrix(A)
 
-    # reshape so that zero cone is first, then PSD, then exponential
+    # reshape so that zero cone is first, then nonnegative, then PSD, then exponential
+    zero_plus_nonnegative_dims = 2*theta_size + 1
     A_ = A.copy()
-    A_[1:] = A[0:-1]
-    A_[0] = A[-1]
+    A_[zero_plus_nonnegative_dims:] = A[0:-zero_plus_nonnegative_dims]
+    A_[:zero_plus_nonnegative_dims] = A[-zero_plus_nonnegative_dims:]
     b_ = b.copy()
-    b_[1:] = b[:-1]
-    b_[0] = b[-1]
+    b_[zero_plus_nonnegative_dims:] = b[:-zero_plus_nonnegative_dims]
+    b_[:zero_plus_nonnegative_dims] = b[-zero_plus_nonnegative_dims:]
     return A_, b_, c, cone_dict
 
+
+if __name__ == '__main__':
+    import sympy
+    from sympy import Matrix
+    import scs
+    import ecos
+    a = np.random.normal(size=(100, 3))
+    S = np.cov(a, rowvar=False)
+    A, b, c, cone_dict = write_glasso_cone_program(S, 0)
+    x = Matrix(sympy.symbols([
+        "theta11", "theta21", "theta31", "theta22", "theta32", "theta33",
+        "z11", "z22", "z33", "z21", "z31", "z32",
+        "t1", "t2", "t3", "t",
+        "m11", "m21", "m31", "m22", "m32", "m33"
+    ]))
+
+    print("Constraints:")
+    print(Matrix(b) - Matrix(A.toarray()) @ x)
+
+    print("Objective:")
+    print(Matrix(c).T @ x)
+
+    K = np.linalg.inv(S)
+    sol = scs.solve(dict(A=A, b=b, c=c), cone_dict, eps=1e-15, max_iters=10000, verbose=True, acceleration_lookback=1)
+    x = sol["x"]
+    p = S.shape[0]
+    d = int(S.shape[0]*(S.shape[0]+1)/2)

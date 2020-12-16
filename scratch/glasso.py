@@ -220,29 +220,29 @@ def write_glasso_cone_program(S, lambda_):
     return A_, b_, c, cone_dict
 
 
-# if __name__ == '__main__':
-#     import sympy
-#     from sympy import Matrix
-#     import scs
-#     import ecos
-#     a = np.random.normal(size=(100, 3))
-#     S = np.cov(a, rowvar=False)
-#     A, b, c, cone_dict = write_glasso_cone_program(S, 1.)
-#     x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
-#     print(_vec2symmetric((A @ x)[1:22], 6))
-#     x = Matrix(sympy.symbols([
-#         "theta11", "theta21", "theta31", "theta22", "theta32", "theta33",
-#         "z11", "z22", "z33", "z21", "z31", "z32",
-#         "t1", "t2", "t3", "t"
-#     ]))
-#
-#     print(Matrix(b) - Matrix(A.toarray()) @ x)
-#     print(Matrix(c).T @ x)
-#     sol = diffcp.solve_and_derivative(A, b, c, cone_dict)
-#     K = np.linalg.inv(S)
-#     sol = scs.solve(dict(A=A, b=b, c=c), cone_dict, eps=1e-15, max_iters=10000, verbose=True, acceleration_lookback=1)
-#     x = sol["x"]
-#     p = S.shape[0]
+if __name__ == '__main__':
+    import sympy
+    from sympy import Matrix
+    import scs
+    import ecos
+    a = np.random.normal(size=(100, 3))
+    S = np.cov(a, rowvar=False)
+    A, b, c, cone_dict = write_glasso_cone_program(S, 1.)
+    x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+    print(_vec2symmetric((A @ x)[1:22], 6))
+    x = Matrix(sympy.symbols([
+        "theta11", "theta21", "theta31", "theta22", "theta32", "theta33",
+        "z11", "z22", "z33", "z21", "z31", "z32",
+        "t1", "t2", "t3", "t"
+    ]))
+
+    print(Matrix(b) - Matrix(A.toarray()) @ x)
+    print(Matrix(c).T @ x)
+    sol = diffcp.solve_and_derivative(A, b, c, cone_dict)
+    K = np.linalg.inv(S)
+    sol = scs.solve(dict(A=A, b=b, c=c), cone_dict, eps=1e-15, max_iters=10000, verbose=True, acceleration_lookback=1)
+    x = sol["x"]
+    p = S.shape[0]
 #     d = int(S.shape[0]*(S.shape[0]+1)/2)
 #     theta = _vec2symmetric(x[:d], p)
 #     print(theta[:3, :3])
