@@ -1,6 +1,6 @@
 import causaldag as cd
 import numpy as np
-from applications.glasso.cvgm import cvgm
+from applications.glasso.cvgm_conic import cvgm
 
 num_nodes = 10
 nsamples = 100
