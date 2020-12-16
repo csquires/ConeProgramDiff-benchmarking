@@ -66,7 +66,6 @@ def write_glasso_cone_program(S, lambda_):
         A2[d*3+2, z_ix] = -1
         b2[d*3+1] = 1
         A2[d*3, t_ix] = -1
-    print(A2)
 
     # Equality constraint on t
     A3 = np.zeros((1, p+1))
