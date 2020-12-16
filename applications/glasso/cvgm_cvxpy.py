@@ -1,6 +1,7 @@
 import numpy as np
 import cvxpy as cp
 import ipdb
+from tqdm import tqdm
 
 
 def _vec2symmetric(a, dim):
@@ -11,7 +12,7 @@ def _vec2symmetric(a, dim):
     return A
 
 
-def gradient_descent_update(p, p_grad, eta=.1):
+def gradient_descent_update(p, p_grad, eta=.01):
     return p - eta * p_grad
 
 
@@ -35,24 +36,26 @@ def cvgm_glasso(samples, alpha0, K=10, p=0.7, tol=1e-4, max_iters=20, gradient_u
         gradients = []
 
         print(f"=== Iteration {num_iter}. alpha={curr_alpha} ====")
-        for training_data, test_data in zip(training_datasets, test_datasets):
+        for training_data, test_data in tqdm(zip(training_datasets, test_datasets), total=K):
             cov_train = np.cov(training_data, rowvar=False)
             p = cov_train.shape[1]
 
-            X = cp.Variable((p, p), symmetric=True)
+            X = cp.Variable((p, p), PSD=True)
             alpha_cp = cp.Parameter(nonneg=True)
             alpha_cp.value = curr_alpha
             constraints = [X >> 0]
-            objective = cp.Minimize(cp.sum(cp.multiply(cov_train, X)) - alpha_cp*cp.log_det(X))
+            cov_train_cp = cp.Parameter((p, p), PSD=True)
+            cov_train_cp.value = cov_train
+            objective = cp.Minimize(cp.sum(cp.multiply(cov_train, X)) - cp.log_det(X) + alpha_cp*cp.pnorm(X, 1))
             prob = cp.Problem(objective, constraints)
             prob.solve(requires_grad=True)
             theta = X.value
 
-            print(f"Training loss: {.5*np.sum(cov_train * theta) - .5*np.log(np.linalg.det(theta)) + p/2 * np.log(2*np.pi)}")
+            # print(f"Training loss: {.5*np.sum(cov_train * theta) - .5*np.log(np.linalg.det(theta)) + p/2 * np.log(2*np.pi)}")
 
             cov_test = np.cov(test_data, rowvar=False)
             # print(f"Test loss: {np.sum(cov_test * theta) - np.log(np.linalg.det(theta))}")
-            print(f"Test loss: {.5*np.sum(cov_test * theta) - .5*np.log(np.linalg.det(theta)) + p/2 * np.log(2*np.pi)}")
+            # print(f"Test loss: {.5*np.sum(cov_test * theta) - .5*np.log(np.linalg.det(theta)) + p/2 * np.log(2*np.pi)}")
             dl_dtheta = cov_test - np.linalg.inv(theta)
 
             alpha_cp.delta = 1
@@ -90,11 +93,11 @@ if __name__ == '__main__':
     import causaldag as cd
     from sklearn.covariance import GraphicalLassoCV
 
-    d = cd.rand.directed_erdos(10, .2)
+    d = cd.rand.directed_erdos(6, .2)
     g = cd.rand.rand_weights(d)
-    samples = g.sample(1000)
+    samples = g.sample(100)
 
-    cvgm_alpha, cvgm_theta = cvgm_glasso(samples, alpha0=.4, K=20)
+    cvgm_alpha, cvgm_theta = cvgm_glasso(samples, alpha0=1, K=20)
     print(cvgm_alpha)
 
     glcv = GraphicalLassoCV(alphas=[.5, 1, 2], cv=10)
@@ -111,11 +114,9 @@ if __name__ == '__main__':
     print(f"CVGM loss: {.5*np.sum(cov_heldout * cvgm_theta) - .5*np.log(np.linalg.det(cvgm_theta)) + p/2 * np.log(2*np.pi)}")
     print(f"CV loss: {.5*np.sum(cov_heldout * glcv_theta) - .5*np.log(np.linalg.det(glcv_theta)) + p/2 * np.log(2*np.pi)}")
 
-    glcv_edges = set(zip(*np.nonzero(~np.isclose(glcv_theta, 0))))
-    cvgm_edges = set(zip(*np.nonzero(~np.isclose(cvgm_theta, 0))))
-    print(len(d.moral_graph().edges - glcv_edges))
-    print(len(d.moral_graph().edges - cvgm_edges))
-    print(len(glcv_edges - d.moral_graph().edges))
-    print(len(cvgm_edges - d.moral_graph().edges))
-    print(np.nonzero(~np.isclose(glcv_theta, 0)))
-    print(np.nonzero(~np.isclose(cvgm_theta, 0)))
+    glcv_edges = {frozenset({i, j}) for i, j in zip(*np.nonzero(~np.isclose(glcv_theta, 0))) if i != j}
+    cvgm_edges = {frozenset({i, j}) for i, j in zip(*np.nonzero(~np.isclose(cvgm_theta, 0))) if i != j}
+    print("False negatives in GLCV", len(d.moral_graph().edges - glcv_edges))
+    print("False negatives in CVGM", len(d.moral_graph().edges - cvgm_edges))
+    print("False positives in GLCV", len(glcv_edges - d.moral_graph().edges))
+    print("False positives in CVGM", len(cvgm_edges - d.moral_graph().edges))
