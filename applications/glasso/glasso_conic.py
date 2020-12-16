@@ -15,7 +15,7 @@ def merge_psd_plus_diag(theta_size, z_size, p):
     s_size = theta_size + 3*z_size - p
     A = np.zeros((s_size, theta_size+z_size))
 
-    # === THETA ===
+    # === FILL UPPER LEFT BLOCK WITH THETA ===
     i, j = 0, 0
     for k in range(p, 0, -1):
         for k_ in range(k):
@@ -24,7 +24,7 @@ def merge_psd_plus_diag(theta_size, z_size, p):
             j += 1
         i += p
 
-    # === Z ===
+    # === FILL BOTTOM LEFT BLOCK WITH Z ===
     i, j = p, theta_size+p
     for d in range(p):
         zd_ix = theta_size + d
@@ -34,7 +34,7 @@ def merge_psd_plus_diag(theta_size, z_size, p):
             j += 1
         i += (2*p - d)
 
-    # === DIAGONAL ===
+    # === FILL BOTTOM RIGHT BLOCK WITH DIAGONAL OF Z ===
     i = int(p**2 + p*(p+1)/2)
     for d in range(p):
         z_ix = theta_size + d
@@ -43,7 +43,6 @@ def merge_psd_plus_diag(theta_size, z_size, p):
     return A
 
 
-# TODO add lambda constraint
 def write_glasso_cone_program(S, lambda_):
     """
     S: empirical covariance matrix.
