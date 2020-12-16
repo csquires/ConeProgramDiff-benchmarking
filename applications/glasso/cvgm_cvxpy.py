@@ -12,11 +12,11 @@ def _vec2symmetric(a, dim):
     return A
 
 
-def gradient_descent_update(p, p_grad, eta=.01):
+def gradient_descent_update(p, p_grad, eta=.001):
     return p - eta * p_grad
 
 
-def cvgm_glasso(samples, alpha0, K=10, p=0.7, tol=1e-4, max_iters=20, gradient_update=gradient_descent_update):
+def cvgm_glasso(samples, alpha0, K=10, p=0.7, tol=1e-4, max_iters=100, gradient_update=gradient_descent_update):
     nsamples = samples.shape[0]
     num_training = int(p*nsamples)
 
@@ -97,10 +97,10 @@ if __name__ == '__main__':
     g = cd.rand.rand_weights(d)
     samples = g.sample(100)
 
-    cvgm_alpha, cvgm_theta = cvgm_glasso(samples, alpha0=1, K=20)
+    cvgm_alpha, cvgm_theta = cvgm_glasso(samples, alpha0=.1, K=20, max_iters=5)
     print(cvgm_alpha)
 
-    glcv = GraphicalLassoCV(alphas=[.5, 1, 2], cv=10)
+    glcv = GraphicalLassoCV(alphas=[.01, .02, .05, .1, .15], cv=10)
     glcv.fit(samples)
 
     print(f"Selected alpha from standard CV: {glcv.alpha_}")
