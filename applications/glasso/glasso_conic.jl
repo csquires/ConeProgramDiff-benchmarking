@@ -2,6 +2,7 @@ using LinearAlgebra
 using MathOptInterface
 const MOI = MathOptInterface
 
+
 function _merge_psd_diag(θ_size, z_size, p)
     s_size = θ_size + 3*z_size - p
     A = Array{Float64}(undef, s_size, θ_size+z_size)
@@ -79,11 +80,13 @@ function write_glasso_cone_program(S, λ)
     A = vcat(B1, B2, B3, -A4)
 
     b = zeros(size(A, 1))
-    # b[size(A1, 1):(size(A1, 1)+length(b2))] .= b2
+    b[(size(A1, 1)+1):(size(A1, 1)+length(b2))] .= b2
 
     # === COST FUNCTION
     c = zeros(size(A, 1))
-    c[1:θ_size] .= 1
+    c[1:θ_size] .= S[tril(trues(size(S)))]
+    c[(end-m_size+1):end] .= λ
+    c[θ_size + z_size + p] = -1
 
     cones = [
         MOI.PositiveSemidefiniteConeTriangle(2p),
@@ -91,9 +94,11 @@ function write_glasso_cone_program(S, λ)
         MOI.Zeros(1),
         MOI.Nonnegatives(2θ_size)
     ]
+
+    return A, b, c, cones
 end
 
-A = randn(100, 3)
-S = A' * A
+a = randn(100, 3)
+S = a' * a
 
 write_glasso_cone_program(S, 1)
