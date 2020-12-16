@@ -5,17 +5,85 @@ from scipy.sparse import csc_matrix
 import numpy as np
 
 sqrt2 = np.sqrt(2)
+sqrt2 = 1
 
-p = 5
+p = 3
 lambda_ = 0
 A = np.random.normal(size=(p*2, p))
 S = A.T @ A
 X = cp.Variable((p, p), symmetric=True)
 constraints = [X >> 0]
-objective = cp.Minimize(cp.sum(cp.multiply(S, X)) - cp.log_det(X) + lambda_ * cp.norm(X, 1))
+objective = cp.Minimize(cp.sum(cp.multiply(S, X)) - cp.log_det(X))
 prob = cp.Problem(objective, constraints)
-prob.solve(requires_grad=True)
+prob.solve()
 sol = X.value
+print("true inverse")
+print(np.linalg.inv(S))
+print("original form")
+print(sol)
+
+print("form with t added")
+X = cp.Variable((p, p), symmetric=True)
+t = cp.Variable()
+constraints = [X >> 0, t <= cp.log_det(X)]
+objective = cp.Minimize(cp.sum(cp.multiply(S, X)) - t)
+prob = cp.Problem(objective, constraints)
+prob.solve()
+sol = X.value
+print(sol)
+
+print("form with log det expanded")
+X = cp.Variable((p, p), symmetric=True)
+Z = cp.Variable((p, p))
+D = cp.diag(cp.diag(Z))
+A = cp.vstack([
+    cp.hstack([X, Z]),
+    cp.hstack([cp.transpose(Z), D])]
+)
+t = cp.Variable()
+constraints = [
+    A >> 0,
+    t <= cp.sum(cp.log(cp.diag(Z))),
+    Z[0, 1] == 0,
+    Z[0, 2] == 0,
+    Z[1, 2] == 0,
+]
+objective = cp.Minimize(cp.sum(cp.multiply(S, X)) - t)
+prob = cp.Problem(objective, constraints)
+prob.solve()
+sol = X.value
+print(sol)
+
+print("form with t as a sum")
+X = cp.Variable((p, p), symmetric=True)
+Z = cp.Variable((p, p))
+D = cp.diag(cp.diag(Z))
+A = cp.vstack([
+    cp.hstack([X, Z]),
+    cp.hstack([cp.transpose(Z), D])]
+)
+t = cp.Variable()
+t1 = cp.Variable()
+t2 = cp.Variable()
+t3 = cp.Variable()
+constraints = [
+    A >> 0,
+    Z[0, 1] == 0,
+    Z[0, 2] == 0,
+    Z[1, 2] == 0,
+    # t1 <= cp.log(Z[0, 0]),
+    # t2 <= cp.log(Z[1, 1]),
+    # t3 <= cp.log(Z[2, 2]),
+    cp.constraints.exponential.ExpCone(t1, 1, Z[0, 0]),
+    cp.constraints.exponential.ExpCone(t2, 1, Z[1, 1]),
+    cp.constraints.exponential.ExpCone(t3, 1, Z[2, 2]),
+    t == t1 + t2 + t3,
+]
+objective = cp.Minimize(cp.sum(cp.multiply(S, X)) - t)
+prob = cp.Problem(objective, constraints)
+prob.solve()
+sol = X.value
+print(sol)
 
 
 def _symmetric2vec(A):
@@ -82,9 +150,9 @@ def write_glasso_cone_program(S, lambda_):
     for d in range(p):
         z_ix = d
         t_ix = z_size+d
-        A2[d*3, z_ix] = -1
+        A2[d*3+2, z_ix] = -1
         b2[d*3+1] = 1
-        A2[d*3+2, t_ix] = -1
+        A2[d*3, t_ix] = -1
     print(A2)
 
     # Equality constraint on t
@@ -146,9 +214,11 @@ if __name__ == '__main__':
     print(Matrix(c).T @ x)
     # sol = diffcp.solve_and_derivative(A, b, c, cone_dict)
     K = np.linalg.inv(S)
-    sol = scs.solve(dict(A=A, b=b, c=c), cone_dict, eps=1e-12, max_iters=2000, verbose=True, acceleration_lookback=1)
+    sol = scs.solve(dict(A=A, b=b, c=c), cone_dict, eps=1e-12, max_iters=2000, verbose=True)
     x = sol["x"]
     theta = _vec2symmetric(x[:6], 3)
+    print(theta)
+    print(np.linalg.inv(S))
 
     # theta = [1, 2, 3, 4, 5, 6]
     # z = [7, 8, 9, 10, 11, 12]
