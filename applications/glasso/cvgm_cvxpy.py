@@ -1,8 +1,6 @@
 import numpy as np
-import random
-from diffcp import solve_and_derivative
+import cvxpy as cp
 import ipdb
-from applications.glasso.glasso_conic import write_glasso_cone_program
 
 
 def _vec2symmetric(a, dim):
@@ -17,7 +15,7 @@ def gradient_descent_update(p, p_grad, eta=.01):
     return p - eta * p_grad
 
 
-def cvgm_glasso(samples, alpha0, K=10, p=0.7, tol=1e-4, gradient_update=gradient_descent_update):
+def cvgm_glasso(samples, alpha0, K=10, p=0.7, tol=1e-4, max_iters=20, gradient_update=gradient_descent_update):
     nsamples = samples.shape[0]
     num_training = int(p*nsamples)
 
@@ -31,29 +29,42 @@ def cvgm_glasso(samples, alpha0, K=10, p=0.7, tol=1e-4, gradient_update=gradient
 
     diff = float('inf')
     curr_alpha = alpha0
-    while diff > tol:
+    num_iter = 0
+    while diff > tol and num_iter < max_iters:
+        num_iter += 1
         gradients = []
 
         for training_data, test_data in zip(training_datasets, test_datasets):
             cov_train = np.cov(training_data, rowvar=False)
             p = cov_train.shape[1]
-            theta_size = int(p*(p+1)/2)
 
+            X = cp.Variable((p, p), symmetric=True)
+            alpha_cp = cp.Parameter(nonneg=True)
+            alpha_cp.value = curr_alpha
+            constraints = [X >> 0]
+            objective = cp.Minimize(cp.sum(cp.multiply(cov_train, X)) - alpha_cp*cp.log_det(X))
+            prob = cp.Problem(objective, constraints)
+            prob.solve(requires_grad=True)
+            theta = X.value
             # write program in correct form and run it
-            A, b, c, cone_dict = write_glasso_cone_program(cov_train, curr_alpha)
-            x, y, s, derivative, adjoint_derivative = solve_and_derivative(A, b, c, cone_dict)
-            theta = _vec2symmetric(x[:theta_size], p)
+
+            print("=====")
+            print(f"Alpha: {curr_alpha}")
+            print(f"Training loss: {np.sum(cov_train * theta) - np.log(np.linalg.det(theta))}")
 
             cov_test = np.cov(test_data, rowvar=False)
+            print(f"Test loss: {np.sum(cov_test * theta) - np.log(np.linalg.det(theta))}")
             dl_dtheta = cov_test - np.linalg.inv(theta)
 
-            dc = np.zeros(c.shape)
-            dc[-theta_size:] = 1
-            dx, dy, ds = derivative(np.zeros(A.shape), np.zeros(b.shape), dc)
-            dtheta_d_alpha = _vec2symmetric(dx[:theta_size], p)
+            alpha_cp.delta = 1
+            prob.derivative()
+            dtheta_d_alpha = X.delta
 
             dl_dalpha = np.sum(dl_dtheta * dtheta_d_alpha)
+            print(dl_dalpha)
             gradients.append(dl_dalpha)
+        print(f"Gradient Average: {np.mean(gradients)}")
+        print(f"Gradient Std: {np.std(gradients)}")
 
         # update alpha
         alpha_grad = np.mean(gradients)
@@ -64,20 +75,22 @@ def cvgm_glasso(samples, alpha0, K=10, p=0.7, tol=1e-4, gradient_update=gradient
         print(alpha_grad, curr_alpha)
 
     # s = prob(samples, new_alpha)
-    # return new_alpha, s
+    return curr_alpha
 
 
 if __name__ == '__main__':
     import causaldag as cd
     from sklearn.covariance import GraphicalLassoCV
 
-    d = cd.rand.directed_erdos(3, .5)
+    d = cd.rand.directed_erdos(5, .5)
     g = cd.rand.rand_weights(d)
     samples = g.sample(100)
 
-    cvgm_glasso(samples, 1)
+    cvgm_alpha = cvgm_glasso(samples, 1)
+    print(cvgm_alpha)
 
-    glcv = GraphicalLassoCV(alphas=[.1, .2, .3, .4, .5, .6, .7, .8, .9])
+    glcv = GraphicalLassoCV(alphas=[.1, .2, .3, .4, .5, .6, .7, .8, .9], cv=10)
     glcv.fit(samples)
+    print(glcv.alpha_)
 
 
