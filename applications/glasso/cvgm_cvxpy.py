@@ -13,7 +13,7 @@ def _vec2symmetric(a, dim):
     return A
 
 
-def gradient_descent_update(p, fp, dfdp, eta=.1, step_num=None):
+def gradient_descent_update(p, fp, dfdp, eta=.01, step_num=None):
     step = -eta/np.sqrt(step_num+1) * dfdp
     print(f"Taking gradient step of {-eta * dfdp}")
     return p + step
@@ -144,8 +144,8 @@ def cvgm_glasso(samples, alpha0, min_alpha=.01, K=10, sample_fraction=0.7, tol=1
             #     print(loss_difference)
             #     print(dl_dalpha, dl_dalpha_)
 
-        print(f"Loss average:", np.mean(loss_differences))
-        print(f"Gradient Average: {np.mean(gradients)}")
+        print(f"Average loss difference:", np.mean(loss_differences))
+        print(f"Gradient Median: {np.median(gradients)}")
         print(f"Gradient Std: {np.std(gradients)}")
         print(f"Test loss: {np.mean(test_losses)}")
         if cov_heldout is not None:
@@ -192,9 +192,9 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     sns.set()
 
-    d = cd.rand.directed_erdos(8, .1)
+    d = cd.rand.directed_erdos(12, .1)
     g = cd.rand.rand_weights(d)
-    samples = g.sample(20)
+    samples = g.sample(100)
     train_cov = np.cov(samples, rowvar=False)
     train_prec = np.linalg.inv(train_cov)
     heldout_samples = g.sample(1000)
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     # plt.show()
 
     print("Running CVGM")
-    cvgm_alpha, cvgm_theta, cvgm_path = cvgm_glasso(samples, alpha0=1, K=20, max_iters=20, cov_heldout=cov_heldout)
+    cvgm_alpha, cvgm_theta, cvgm_path = cvgm_glasso(samples, alpha0=.01, K=20, max_iters=20, cov_heldout=cov_heldout)
     preselected_alphas = [.1, .2, .5, 1, 5, 10]
     thetas_preselected = [solve_glasso(train_cov, lambda_) for lambda_ in preselected_alphas]
     thetas = [solve_glasso(train_cov, lambda_) for lambda_ in cvgm_path]
