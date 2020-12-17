@@ -5,7 +5,7 @@ const MOI = MathOptInterface
 
 function _merge_psd_diag(θ_size, z_size, p)
     s_size = θ_size + 3*z_size - p
-    A = Array{Float64}(undef, s_size, θ_size+z_size)
+    A = zeros(s_size, θ_size+z_size)
 
     # === FILL UPPER LEFT BLOCK WITH Θ
     i, j = 1, 1
@@ -83,7 +83,7 @@ function write_glasso_cone_program(S, λ)
     b[(size(A1, 1)+1):(size(A1, 1)+length(b2))] .= b2
 
     # === COST FUNCTION
-    c = zeros(size(A, 1))
+    c = zeros(size(A, 2))
     c[1:θ_size] .= S[tril(trues(size(S)))]
     c[(end-m_size+1):end] .= λ
     c[θ_size + z_size + p] = -1
@@ -101,4 +101,32 @@ end
 a = randn(100, 3)
 S = a' * a
 
-write_glasso_cone_program(S, 1)
+A, b, c, cones = write_glasso_cone_program(S, 1)
+
+using SCS
+using JuMP
+
+m,n = size(A)
+model = Model()
+set_optimizer(model, optimizer_with_attributes(SCS.Optimizer, "eps" => 1e-10, "max_iters" => 100000, "verbose" => 0))
+@variable(model, x[1:n])
+@variable(model, s[1:m])
+@objective(model, Min, c'*x)
+con = @constraint(model, A*x + s .== b)
+curr = 1
+for cone in cones
+    if (typeof(cone) <: MOI.PositiveSemidefiniteConeTriangle)
+        dimension = Int64(cone.side_dimension * (cone.side_dimension + 1) / 2)
+    elseif (typeof(cone) <: MOI.ExponentialCone)
+        dimension = 3
+    else
+        dimension = cone.dimension
+    end
+    println(dimension)
+    @constraint(model, s[curr:curr+dimension-1] in cone)
+    curr += dimension
+end
+optimize!(model)
+
+sol = value.(x)
+θ_est = sol[1:6]
