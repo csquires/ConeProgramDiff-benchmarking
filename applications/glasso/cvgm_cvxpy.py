@@ -194,41 +194,41 @@ if __name__ == '__main__':
 
     d = cd.rand.directed_erdos(12, .1)
     g = cd.rand.rand_weights(d)
-    samples = g.sample(100)
+    samples = g.sample(50)
     train_cov = np.cov(samples, rowvar=False)
     train_prec = np.linalg.inv(train_cov)
     heldout_samples = g.sample(1000)
     cov_heldout = np.cov(heldout_samples, rowvar=False)
 
-    # alphas = np.linspace(.01, .6, 12)
-    # thetas = [solve_glasso(train_cov, alpha) for alpha in alphas]
-    # nll_train = [compute_loss(train_cov, theta) for theta in thetas]
-    # nll_heldout = [compute_loss(cov_heldout, theta) for theta in thetas]
-    # nll_true = compute_loss(g.covariance, g.precision)
-    # plt.axhline(nll_true, color='k', linestyle='--')
-    # plt.plot(alphas, nll_train, label="Train")
-    # plt.plot(alphas, nll_heldout, label="Heldout")
-    #
-    # plt.xlabel("Alpha")
-    # plt.ylabel("NLL")
-    # plt.legend()
-    # plt.show()
+    alphas = np.linspace(.01, .6, 12)
+    thetas = [solve_glasso(train_cov, alpha) for alpha in alphas]
+    nll_train = [compute_loss(train_cov, theta) for theta in thetas]
+    nll_heldout = [compute_loss(cov_heldout, theta) for theta in thetas]
+    nll_true = compute_loss(g.covariance, g.precision)
+    plt.axhline(nll_true, color='k', linestyle='--')
+    plt.plot(alphas, nll_train, label="Train")
+    plt.plot(alphas, nll_heldout, label="Heldout")
 
-    print("Running CVGM")
-    cvgm_alpha, cvgm_theta, cvgm_path = cvgm_glasso(samples, alpha0=.01, K=20, max_iters=20, cov_heldout=cov_heldout)
-    preselected_alphas = [.1, .2, .5, 1, 5, 10]
-    thetas_preselected = [solve_glasso(train_cov, lambda_) for lambda_ in preselected_alphas]
-    thetas = [solve_glasso(train_cov, lambda_) for lambda_ in cvgm_path]
-    nlls = [compute_loss(cov_heldout, theta) for theta in thetas]
-    nlls_preselected = [compute_loss(cov_heldout, theta) for theta in thetas_preselected]
-
-    for nll, alpha, color in zip(nlls_preselected, preselected_alphas, sns.color_palette()):
-        plt.axhline(y=nll, label=alpha, color=color, linestyle='--')
-    plt.plot(nlls)
-    plt.xlabel("Step")
-    plt.ylabel("Negative Log likelihood")
+    plt.xlabel("Alpha")
+    plt.ylabel("NLL")
     plt.legend()
     plt.show()
+
+    # print("Running CVGM")
+    # cvgm_alpha, cvgm_theta, cvgm_path = cvgm_glasso(samples, alpha0=.01, K=20, max_iters=20, cov_heldout=cov_heldout)
+    # preselected_alphas = [.1, .2, .5, 1, 5, 10]
+    # thetas_preselected = [solve_glasso(train_cov, lambda_) for lambda_ in preselected_alphas]
+    # thetas = [solve_glasso(train_cov, lambda_) for lambda_ in cvgm_path]
+    # nlls = [compute_loss(cov_heldout, theta) for theta in thetas]
+    # nlls_preselected = [compute_loss(cov_heldout, theta) for theta in thetas_preselected]
+    #
+    # for nll, alpha, color in zip(nlls_preselected, preselected_alphas, sns.color_palette()):
+    #     plt.axhline(y=nll, label=alpha, color=color, linestyle='--')
+    # plt.plot(nlls)
+    # plt.xlabel("Step")
+    # plt.ylabel("Negative Log likelihood")
+    # plt.legend()
+    # plt.show()
 
     # plt.plot(cvgm_path)
     # plt.xlabel("Step")
