@@ -25,7 +25,7 @@ for program_num in trange(num_programs):
 
 # === SOC LARGE
 print("=== GENERATING LARGE SOCs ===")
-num_programs = 2
+num_programs = 30
 K = {
     'f': 3,  # ZERO
     'l': 3,  # POS
@@ -66,7 +66,7 @@ for program_num in trange(num_programs):
 
 # === EXPONENTIAL SMALL
 print("=== GENERATING SMALL EXPONENTIAL ===")
-num_programs = 2
+num_programs = 30
 K = {
     'ep': 2  # EXPONENTIAL
 }
@@ -80,7 +80,7 @@ for program_num in trange(num_programs):
 
 # === EXPONENTIAL SMALL
 print("=== GENERATING LARGE EXPONENTIAL ===")
-num_programs = 2
+num_programs = 30
 K = {
     'ep': 20  # EXPONENTIAL
 }
