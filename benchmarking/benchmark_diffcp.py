@@ -62,7 +62,7 @@ solve_and_time(f"benchmarking/programs/{name}", K, num_programs)
 
 # === SDP SMALL
 print("=== SOLVING SMALL SDPs WITH DIFFCP ===")
-num_programs = 2
+num_programs = 30
 K = {
     'f': 5,  # ZERO
     's': [10],  # SD
@@ -73,12 +73,10 @@ solve_and_time(f"benchmarking/programs/{name}", K, num_programs)
 
 # === SDP LARGE
 print("=== SOLVING LARGE SDPs WITH DIFFCP ===")
-num_programs = 2
+num_programs = 30
 K = {
-    'f': 25,  # ZERO
-
-
-    's': [50],  # SD
+    'f': 10,  # ZERO
+    's': [20],  # SD
 }
 name = "sdp-large"
 solve_and_time(f"benchmarking/programs/{name}", K, num_programs)
@@ -98,7 +96,7 @@ solve_and_time(f"benchmarking/programs/{name}", K, num_programs)
 print("=== SOLVING LARGE EXPONENTIAL WITH DIFFCP ===")
 num_programs = 30
 K = {
-    'ep': 20
+    'ep': 4
 }
 name = "exponential-large"
 solve_and_time(f"benchmarking/programs/{name}", K, num_programs)

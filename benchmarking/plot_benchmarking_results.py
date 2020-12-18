@@ -9,8 +9,8 @@ sns.set()
 names = [
     "soc-small",
     "soc-large",
-    # "sdp-small",
-    # "sdp-large",
+    "sdp-small",
+    "sdp-large",
     "exponential-small",
     "exponential-large"
 ]
@@ -29,6 +29,7 @@ DERIV_PLOT = True
 ADJOINT_PLOT = True
 
 if SOLVE_PLOT:
+    plt.clf()
     diffcp_times = {name: np.loadtxt(f"benchmarking/programs/{name}_diffcp_solve_times.txt") for name in names}
     cpd_times = {name: np.loadtxt(f"benchmarking/programs/{name}_cpd_solve_times.txt") for name in names}
     df = pd.DataFrame()
