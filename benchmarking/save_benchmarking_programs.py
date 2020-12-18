@@ -4,8 +4,8 @@ import random
 import numpy as np
 from tqdm import trange
 
-np.random.seed(1298731)
-random.seed(1298731)
+np.random.seed(31231)
+random.seed(321)
 
 # === SOC SMALL
 print("=== GENERATING SMALL SOCs ===")
@@ -41,9 +41,7 @@ for program_num in trange(num_programs):
 
 # === SDP SMALL
 print("=== GENERATING SMALL SDPs ===")
-random.seed(1231)
-np.random.seed(1231)
-num_programs = 2
+num_programs = 30
 n = 10
 p = 5
 name = "sdp-small"
@@ -55,9 +53,9 @@ for program_num in trange(num_programs):
 
 # === SDP LARGE
 print("=== GENERATING LARGE SDPs ===")
-num_programs = 50
-n = 50
-p = 25
+num_programs = 30
+n = 20
+p = 10
 name = "sdp-large"
 for program_num in trange(num_programs):
     program, cone_dims = random_sdp(n, p)
@@ -78,14 +76,14 @@ for program_num in trange(num_programs):
     save_cone_program(f"benchmarking/programs/{name}/{program_num}.txt", program)
 
 
-# === EXPONENTIAL SMALL
+# === EXPONENTIAL LARGE
 print("=== GENERATING LARGE EXPONENTIAL ===")
 num_programs = 30
 K = {
-    'ep': 20  # EXPONENTIAL
+    'ep': 4  # EXPONENTIAL
 }
-m = 20*3
-n = 20
+m = 4*3
+n = 10
 name = "exponential-large"
 for program_num in trange(num_programs):
     program = random_cone_prog(m, n, K)
