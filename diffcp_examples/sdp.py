@@ -34,45 +34,25 @@ def main(n=3, p=3):
     constraints = [cp.trace(As[i]@X) == Bs[i] for i in range(p)]
     prob = cp.Problem(cp.Minimize(objective), constraints)
     A, b, c, cone_dims = scs_data_from_cvxpy_problem(prob)
-
-    # Print problem size
-    mn_plus_m_plus_n = A.size + b.size + c.size
-    n_plus_2n = c.size + 2 * b.size
-    entries_in_derivative = mn_plus_m_plus_n * n_plus_2n
-    print(f"""n={n}, p={p}, A.shape={A.shape}, nnz in A={A.nnz}, derivative={mn_plus_m_plus_n}x{n_plus_2n} ({entries_in_derivative} entries)""")
+    cone_dims = {'f': 25, 's': [50]}
+    print(cone_dims)
 
     # Compute solution and derivative maps
-    start = time.perf_counter()
+    print(A.shape, b.shape, c.shape, cone_dims)
     x, y, s, derivative, adjoint_derivative = diffcp.solve_and_derivative(
         A, b, c, cone_dims, eps=1e-5)
-    end = time.perf_counter()
-    print("Compute solution and set up derivative: %.2f s." % (end - start))
 
-    # Derivative
-    lsqr_args = dict(atol=1e-5, btol=1e-5)
-    start = time.perf_counter()
-    dA, db, dc = adjoint_derivative(diffcp.cones.vec_symm(
-        C), np.zeros(y.size), np.zeros(s.size), **lsqr_args)
-    end = time.perf_counter()
-    print("Evaluate derivative: %.2f s." % (end - start))
-
-    # Adjoint of derivative
-    start = time.perf_counter()
-    print(A.shape)
-    print(b.shape)
-    print(c.shape)
-    dx, dy, ds = derivative(A, b, c, **lsqr_args)
-    end = time.perf_counter()
-    print("Evaluate adjoint of derivative: %.2f s." % (end - start))
-
-    save_cone_program("test_programs/sdp_test_program.txt", dict(A=A, b=b, c=c, x_star=x, y_star=y, s_star=s), dense=False)
-    forward_sensitivities = np.ones(A.shape), np.ones(b.shape), np.ones(c.shape)
-    reverse_sensitivities = diffcp.cones.vec_symm(np.ones(C.shape)), np.ones(y.size), np.ones(s.size)  # TODO: this doesn't give a vector of all ones
-    print(reverse_sensitivities)
-    save_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt", derivative, adjoint_derivative, forward_sensitivities, reverse_sensitivities)
+    return dict(A=A, b=b, c=c), cone_dims
 
 
 if __name__ == '__main__':
-    np.random.seed(0)
-    main(50, 25)
-    d = load_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt")
+    # np.random.seed(0)
+    from py_utils.loaders import load_cone_program
+    program, _ = main(50, 25)
+    save_cone_program("programs/test.txt", program)
+    program2 = load_cone_program("programs/test.txt")
+
+    A = program["A"]
+    A2 = program2["A"]
+    assert (A != A2).nnz == 0
+    # d = load_derivative_and_adjoint("test_programs/sdp_test_derivatives.txt")

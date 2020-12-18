@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, issparse, csc_matrix
 import os
 
 
@@ -18,6 +18,9 @@ def ensure_folder(file):
 
 
 def save_cone_program(file, program, dense=False):
+    if dense and issparse(program["A"]):
+        raise ValueError("Asked for saving dense, but A is sparse")
+
     ensure_folder(file)
     A = program["A"]
     with open(file, "w") as file:
@@ -27,11 +30,12 @@ def save_cone_program(file, program, dense=False):
             file.write("\n")
         else:
             row_ixs, col_ixs = A.nonzero()
+            data = np.array(A[(row_ixs, col_ixs)]).squeeze()
             file.write(_vec2str(row_ixs+1))
             file.write("\n")
             file.write(_vec2str(col_ixs+1))
             file.write("\n")
-            file.write(_vec2str(A.data))
+            file.write(_vec2str(data))
             file.write("\n")
 
         file.write(_vec2str(program['b']))

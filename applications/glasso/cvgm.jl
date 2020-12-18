@@ -64,7 +64,6 @@ end
 
 function glasso(samples, α)
     Σ = cov(samples)
-    println(Σ)
 
     println("Writing as cone program")
     A, b, c, cone_dict = write_glasso_cone_program(Σ, α)
@@ -83,7 +82,6 @@ function glasso(samples, α)
         end
         dA = zeros(size(A))
         db = zeros(size(b))
-        println(size(A), size(b), size(c), size(dA), size(db), size(dc))
         dx, dy, ds = D(dA, db, dc)
 
         # Extract just the change in θ
@@ -127,4 +125,4 @@ alphas = [.1, .2, .3]
 # θ, best_alpha, test_losses = grid_search_cv(samples, alphas, glasso, nll, K=2)
 
 
-θ, best_alpha, test_losses = cvgm(samples, 0.1, glasso, nll, nll_deriv, K=2)
+θ, alpha_final, alpha_path, gradient_path = cvgm(samples, 0.1, glasso, nll, nll_deriv, K=2)
