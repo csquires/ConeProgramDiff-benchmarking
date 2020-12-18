@@ -4,6 +4,7 @@ using ConeProgramDiff
 using MathOptInterface
 using SCS
 using Random
+using LinearAlgebra
 
 const MOI = MathOptInterface
 
@@ -17,12 +18,12 @@ function check_kkt(A, b, c, cone_prod, x, y, s; tol=1e-8)
 end
 
 
-function check_adjoint()
+function check_adjoint(tol)
     Random.seed!(0)
     dims = (15, 10)
     A, b, c, cone_prod = ConeProgramDiff.l1_minimization_program(dims; solve=false)
     x, y, s, pf, pb = solve_and_diff(A, b, c, cone_prod)
-    @assert check_kkt(A, b, c, cone_prod, x, y, s, tol=1e-6)
+    check_kkt(A, b, c, cone_prod, x, y, s, tol=1e-8)
 
 
     # Check adjoint
@@ -33,7 +34,9 @@ function check_adjoint()
     pstar_pert = dot(x_pert, c)
     df = pstar_pert - pstar
     dp = del * (sum(dA .* dA) + db'*db + dc'*dc)
-    @assert isapprox(df, dp, atol=1e-6)
+    if !isapprox(df, dp, atol=tol)
+        error("Adjoint mismatch: $(abs(df-dp))\n\tdf = $df\n\tdp = $dp")
+    end
 end
 
 
@@ -45,7 +48,7 @@ function check_derivative()
     check_kkt(A, b, c, cone_prod, x, y, s, tol=1e-6)
 
     # Check derivative
-    del = 1e-8
+    del = 1e-6
     dA, db, dc = del*randn(size(A)), del*randn(size(b)), del*randn(size(c))
     dx, dy, ds = pf(dA, db, dc)
     x_pert, y_pert, s_pert, _, _ = solve_and_diff(A+dA, b+db, c+dc, cone_prod)
@@ -55,5 +58,5 @@ function check_derivative()
 end
 
 
-check_adjoint()
+check_adjoint(2e-5)
 check_derivative()
