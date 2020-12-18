@@ -2,6 +2,7 @@ using ConeProgramDiff
 using MathOptInterface
 using SCS, JuMP
 using Random
+using BenchmarkTools
 const MOI = MathOptInterface
 
 ## Projection Test Functions
@@ -14,9 +15,6 @@ function test_proj_zero()
         @assert x ≈ ConeProgramDiff._proj(x, MOI.dual_set(MOI.Zeros(n)))
     end
 end
-
-x
-ConeProgramDiff._proj(x, MOI.dual_set(MOI.Zeros(n)))
 
 function test_proj_pos()
     Random.seed!(0)
@@ -153,7 +151,7 @@ test_proj_zero()
 test_proj_pos()
 test_proj_soc()
 test_proj_psd()
-test_d_proj(10; tol=1e-6)
+test_d_proj(10; tol=1e-10)
 test_d_proj_exp(1e-5)
 
 
@@ -322,9 +320,8 @@ function test_proj_pow_cone(tol)
     case_d = zeros(4)
     for _ in 1:100
         x = randn(3)
-        α = rand()*0.95 + 0.025
+        α = rand()*0.6 + 0.2
         # α = rand()
-        # println("$x, $α")
 
         # Need to get some into case 3
         if rand(1:10) == 1
@@ -359,7 +356,7 @@ function test_d_proj_pow(tol)
     for _ in 1:100
         x = randn(3)
         dx = 1e-6 * randn(3)
-        α = rand()*0.8 + 0.1
+        α = rand()*0.6 + 0.2
 
         # Need to get some into case 3
         if rand(1:10) == 1
@@ -376,16 +373,16 @@ function test_d_proj_pow(tol)
 end
 
 
-
-x,y,z = -[0.7106827995942762; -0.3457209671448468; -0.8353979677680569]
-α = 0.2748063801261257
-Phi(x,y,z,α,r) = 0.5*(Phi_prod(x,α,z,r)^α * Phi_prod(y,1-α,z,r)^(1-α)) - r
-Phi_prod(xi,αi,z,r) = (xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)))
-POW_CONE_THRESH = 1e-14
-lb_ub = (0.0+POW_CONE_THRESH, abs(z)-POW_CONE_THRESH)
-h(r) = Phi(x,y,z,α,r)
-h(lb_ub[1])
-h(lb_ub[2])
-r = find_zero(r -> Phi(x,y,z,α,r), lb_ub, verbose=false)
-
+test_proj_pow_cone(1e-6)
 test_d_proj_pow(1e-6)
+
+x = rand(3)
+α = 0.5
+det_case_pow_cone(x, α; dual=false)
+@time ConeProgramDiff._d_proj_pow_cone(x, α, dual=false)
+
+@time test_proj_pow_cone(1e-6)
+@time test_d_proj_pow(1e-6)
+
+det_case_exp_cone(x; dual=false)
+@btime ConeProgramDiff._proj_exp_cone(x, dual=false)
