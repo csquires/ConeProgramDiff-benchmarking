@@ -37,7 +37,7 @@ cone_prod = vec([MOI.Zeros(n+m) repeat([MOI.SecondOrderCone(n+1)],1,m)])
 x_, y_, s_, pf, pb = solve_and_diff((A), Vector(b), c, cone_prod)
 
 # Compute dP/dx
-dP = pb(ones(n))[1][1:n,1:n]
+dP = pb([ones(n); zeros(m+n)])[1][1:n,1:n]
 dd, vv = eigen(dP)
 
 # Compare norms
