@@ -1,8 +1,6 @@
 using LinearAlgebra
 using MathOptInterface
 const MOI = MathOptInterface
-using SymEngine
-using IterTools
 
 
 function vectorized_index(i, j)
@@ -112,7 +110,6 @@ function write_glasso_cone_program(S, λ)
     c = zeros(size(A, 2))
     m_offset = θ_size + z_size + p + 1
     for (i, j) in tril_indices(S)
-        println((i, j))
         c[vectorized_index(i, j)] = (i == j ? S[i, j] : 2*S[i, j])
         c[vectorized_index(i, j) + m_offset] = (i == j ? λ : 2λ)
     end
@@ -128,63 +125,3 @@ function write_glasso_cone_program(S, λ)
 
     return A, b, c, cones
 end
-
-a = randn(100, 3)
-S = cov(a)
-λ = .1
-
-A, b, c, cones = write_glasso_cone_program(S, λ)
-x_symbolic = [symbols(a) for a in
-    ["θ11", "θ21", "θ22", "θ31", "θ32", "θ33",
-    "z11", "z21", "z22", "z31", "z32", "z33",
-    "t1", "t2", "t3", "t",
-    "m11", "m21", "m22", "m31", "m32", "m33"
-    ]
-]
-s_symbolic = b - A * x_symbolic
-s_symbolic[1:6]
-s_symbolic[7:10]
-s_symbolic[11:15]
-s_symbolic[16:21]
-s_symbolic[22:24]
-s_symbolic[25:27]
-s_symbolic[28:30]
-s_symbolic[31]
-s_symbolic[32:37]
-s_symbolic[38:43]
-
-c' * x_symbolic
-using SCS
-using JuMP
-
-m,n = size(A)
-model = Model()
-set_optimizer(model, optimizer_with_attributes(SCS.Optimizer, "eps" => 1e-10, "max_iters" => 100000, "verbose" => 0))
-@variable(model, x[1:n])
-@variable(model, s[1:m])
-@objective(model, Min, c'*x)
-con = @constraint(model, A*x + s .== b)
-curr = 1
-for cone in cones
-    dimension = MOI.dimension(cone)
-    @constraint(model, s[curr:curr+dimension-1] in cone)
-    curr += dimension
-end
-optimize!(model)
-
-K = inv(S)
-log(det(K))
-sol = value.(x)
-t = sol[16]
-θ_est = sol[1:6]
-θmat = vec2sym(θ_est, 3)
-log(det(θmat))
-
-using SCS
-using Convex
-
-X = Semidefinite(3)
-problem = minimize(sum(X .* S) - logdet(X) + λ*norm(X, 1))
-solve!(problem, SCS.Optimizer)
-a = X.value
-log(det(a))
