@@ -1,4 +1,7 @@
 using ConeProgramDiff
+const MOSD = MathOptSetDistances
+using MathOptInterface
+const MOI = MathOptInterface
 
 
 using MathOptInterface
@@ -85,6 +88,19 @@ for cone in cone_prod
     curr += MOI.dimension(cone)
 end
 cone_prod
+
+
+
+# Solving directly with SCS
+m_, n_ = size(A_)
+f = m_+n_
+l=0
+q=repeat([n_+1], m_)
+s=Vector{Int}()
+ep=0
+ed=0
+p=Vector{Float64}()
+SCS_solve(SCS.IndirectSolver,m,n,A,Vector(b),c,f,l,q,s,ep,ed,p)
 
 # m, n = 3, 4
 # deriv = Dict(

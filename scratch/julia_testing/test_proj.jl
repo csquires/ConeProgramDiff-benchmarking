@@ -101,7 +101,7 @@ function test_d_proj(cone::MOI.AbstractVectorSet; tol=1e-8)
 end
 
 
-function test_d_proj(n::Int; tol=tol)
+function test_d_proj(n::Int; tol=1e-8)
     cones = [
         MOI.Zeros(n),
         MOI.Nonnegatives(n),
