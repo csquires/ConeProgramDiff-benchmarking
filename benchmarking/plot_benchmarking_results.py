@@ -12,7 +12,7 @@ names = [
     "sdp-small",
     "sdp-large",
     "exponential-small",
-    "exponential-large"
+    # "exponential-large"
 ]
 
 names2labels = {
@@ -51,6 +51,17 @@ if SOLVE_PLOT:
     plt.title("Time to solve program")
     plt.tight_layout()
     plt.savefig("benchmarking/figures/solve_times.png")
+
+    plt.clf()
+    diffcp_soc = df[(df["setting"] == "SOC-small") & (df["Library"] == "diffcp")]["time"]
+    cpd_soc = df[(df["setting"] == "SOC-small") & (df["Library"] == "ConeProgramDiff")]["time"]
+    plt.scatter(diffcp_soc, cpd_soc)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.plot([0, max(diffcp_soc)], [0, max(diffcp_soc)])
+    plt.xlabel("Time (diffcp)")
+    plt.ylabel("Time (CPD.jl)")
+    plt.savefig("benchmarking/figures/soc-small-scatter.png")
 
 
 if DERIV_PLOT:

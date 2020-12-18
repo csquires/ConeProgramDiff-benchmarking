@@ -1,9 +1,14 @@
+cd(@__DIR__)
+cd("../..")
+pwd()
 using Statistics
 using JuMP
 using LinearAlgebra
 using ConeProgramDiff
 using Random
 using SCS
+
+include("glasso_conic.jl")
 
 function generate_partitions(samples; K=10, ρ=0.7)
     nsamples = size(samples, 1)
@@ -36,40 +41,55 @@ function grid_search_cv(samples, alphas, alg, loss; K=10, ρ=0.7)
 end
 
 
-function cvgm(samples, α0, alg, loss, loss_deriv; K=10, ρ=0.7, max_iters=1000)
+function cvgm(samples, α0, alg, loss, loss_deriv; K=10, ρ=0.7, max_iters=50, η=0.1, tol=1e-4)
     num_iter = 0
     αt = α0
 
     alpha_path = []
     gradient_path = []
-    while num_iter < max_iters
+    loss_path = []
+    diff = Inf
+    println("==================")
+    while (num_iter < max_iters) & (diff > tol)
         num_iter += 1
+        println("-----")
+        println("αt ", αt)
 
         gradients = []
-        for (training_data, test_data) in generate_partitions(samples, K=K, ρ=ρ)
+        losses = []
+        for (training_data, test_data) in zip(generate_partitions(samples, K=K, ρ=ρ)...)
             θt, D = alg(training_data, αt)
             dθ_dα = D(αt)
             dloss_dθ = loss_deriv(test_data, θt)
             dloss_dα = sum(dθ_dα .* dloss_dθ)
             push!(gradients, dloss_dα)
+            push!(losses, loss(training_data, θt))
         end
-        avg_gradient = mean(gradients)
+        avg_gradient = median(gradients)
+        avg_loss = median(losses)
+        println("grad ", avg_gradient)
+        println("loss ", avg_loss)
+
         push!(gradient_path, avg_gradient)
         push!(alpha_path, αt)
+        push!(loss_path, avg_loss)
+        α_new = αt - η * avg_gradient / sqrt(num_iter)
+        α_new = max(α_new, 0)
+        diff = norm(α_new - αt)
+        println("diff ", diff)
+        αt = α_new
     end
-    θ = alg(training_data, αt)
-    return θ, αt, alpha_path, gradient_path
+    θ = alg(samples, αt)
+    return θ, αt, alpha_path, gradient_path, loss_path
 end
 
 
 function glasso(samples, α)
-    Σ = cov(samples)
+    Σ = cor(samples)
 
-    println("Writing as cone program")
     A, b, c, cone_dict = write_glasso_cone_program(Σ, α)
 
-    println("Optimizing")
-    x, y, s, D, DT = solve_and_diff(A, b, c, cone_dict)
+    x, y, s, D, DT = solve_and_diff(A, b, c, cone_dict, eps=1e-9)
 
     p = size(Σ, 1)
     θ_size = Int64(p*(p+1)/2)
@@ -108,7 +128,7 @@ function nll(samples, θ)
     test_cov = cov(samples)
     d = det(θ)
     if d < 0
-        println("negative determinant", d)
+        return -Inf
     end
     return sum(test_cov .* θ) - log(d)
 end
@@ -118,11 +138,67 @@ function nll_deriv(samples, θ)
     return test_cov - inv(θ)
 end
 
-samples = randn(100, 3)
-alphas = [.1, .2, .3]
-# θ = glasso(samples, 0)
-# nll(samples, θ)
+using Distributions
+using Random
+using Plots
+
+Random.seed!(1231)
+
+p = 3
+num_samples = 60
+B = randn(p, p)
+B[triu(trues(size(B)))] .= 0
+for i=1:p
+    for j=1:i
+        if rand() < .95
+            B[i, j] = 0
+        end
+    end
+end
+K = (I - B)' * (I - B)
+K = I(p)
+Σ = inv(K)
+Σ = (Σ + Σ')/2
+min(eigvals(K)...)
+samples = rand(MultivariateNormal(zeros(p), Σ), num_samples)'
+heldout_samples = rand(MultivariateNormal(zeros(p), Σ), 1000)'
+
+α_grid = .01:.01:.4
+
+θs = []
+derivs = []
+for α in α_grid
+    θ, D = glasso(samples, α)
+    dθ_dα = D(α)
+    dloss_dθ = nll_deriv(heldout_samples, θ)
+    dloss_dα = sum(dθ_dα .* dloss_dθ)
+    println(max(abs.(dloss_dθ)...))
+    println(max(abs.(dθ_dα)...))
+    push!(θs, θ)
+    push!(derivs, dloss_dα)
+end
+median(derivs)
+min(derivs...)
+max(derivs...)
+
+dets = [det(θ) for θ in θs]
+validation_loss = [nll(heldout_samples, θ) for θ in θs]
+
 # θ, best_alpha, test_losses = grid_search_cv(samples, alphas, glasso, nll, K=2)
+plot(α_grid, validation_loss, legend=false)
+xlabel!("λ")
+ylabel!("Validation loss")
+arrow_len = .02
+x_steps = sign.(derivs)
+y_steps = abs.(derivs)
+quiver!(α_grid, validation_loss, quiver=(arrow_len*x_steps, arrow_len*y_steps))
+savefig("/home/csquires/Desktop/cvgm-glasso.png")
 
-
-θ, alpha_final, alpha_path, gradient_path = cvgm(samples, 0.1, glasso, nll, nll_deriv, K=2)
+θ, alpha_final, alpha_path, gradient_path, loss_path = cvgm(samples, 0.04, glasso, nll, nll_deriv, K=20)
+θ_path = [glasso(samples, α)[1] for α in alpha_path]
+nll_path = [nll(heldout_samples, θ) for θ in θ_path]
+xlabel!("λ")
+ylabel!("Validation loss")
+arrow_len = .02
+quiver!(alpha_path, nll_path, quiver=(arrow_len*ones(length(alpha_path)), arrow_len*gradient_path))
+savefig("/home/csquires/Desktop/cvgm-glasso.png")

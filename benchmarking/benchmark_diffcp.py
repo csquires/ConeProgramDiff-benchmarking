@@ -9,9 +9,10 @@ from scipy.sparse import csc_matrix
 def solve_and_time(folder, cone_dict, num_programs):
     print(f"Solving programs in {folder}")
 
-    solve_times = np.zeros(num_programs)
-    deriv_times = np.zeros(num_programs)
-    adjoint_times = np.zeros(num_programs)
+    burn_in = 2
+    solve_times = np.zeros(num_programs-burn_in)
+    deriv_times = np.zeros(num_programs-burn_in)
+    adjoint_times = np.zeros(num_programs-burn_in)
     for program_num in trange(num_programs):
         program = load_cone_program(f"{folder}/{program_num}.txt")
         A, b, c = program["A"], program["b"], program["c"]
@@ -19,19 +20,22 @@ def solve_and_time(folder, cone_dict, num_programs):
 
         start = perf_counter()
         x, y, s, D, DT = diffcp.solve_and_derivative(A, b, c, cone_dict, eps=1e-5)
-        solve_times[program_num] = perf_counter() - start
+        if program_num >= burn_in:
+            solve_times[program_num-burn_in] = perf_counter() - start
 
         start = perf_counter()
         D(np.zeros(A.shape), np.zeros(b.shape), np.ones(c.shape))
-        deriv_times[program_num] = perf_counter() - start
+        if program_num >= burn_in:
+            deriv_times[program_num-burn_in] = perf_counter() - start
 
         start = perf_counter()
         DT(np.ones(x.shape), np.zeros(y.shape), np.ones(s.shape))
-        adjoint_times[program_num] = perf_counter() - start
+        if program_num >= burn_in:
+            adjoint_times[program_num-burn_in] = perf_counter() - start
 
     print(f"Solving took an average of {np.mean(solve_times)} seconds")
-    print(f"Derivatives took an average of {np.mean(solve_times)} seconds")
-    print(f"Adjoints took an average of {np.mean(solve_times)} seconds")
+    print(f"Derivatives took an average of {np.mean(deriv_times)} seconds")
+    print(f"Adjoints took an average of {np.mean(adjoint_times)} seconds")
     np.savetxt(f"{folder}_diffcp_solve_times.txt", solve_times)
     np.savetxt(f"{folder}_diffcp_deriv_times.txt", deriv_times)
     np.savetxt(f"{folder}_diffcp_adjoint_times.txt", adjoint_times)
